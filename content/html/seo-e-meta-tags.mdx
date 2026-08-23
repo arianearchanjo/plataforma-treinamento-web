@@ -1,0 +1,74 @@
+# SEO e meta tags
+
+SEO técnico começa no `<head>`. Estas são as tags que mais impactam como sua
+página aparece na aba do navegador, nos buscadores e ao ser compartilhada.
+
+## O head essencial
+
+```html
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Estrutura semântica — Curso Web</title>
+  <meta
+    name="description"
+    content="Aprenda header, nav, main e article para estruturar páginas acessíveis."
+  />
+
+  <link rel="canonical" href="https://cursos.exemplo.com/html/semantica" />
+</head>
+```
+
+- **`<title>`**: o título da aba *e* o link azul da SERP. Único por página,
+  descritivo (~50–60 caracteres).
+- **`description`**: resumo exibido abaixo do título nos resultados.
+- **`canonical`**: evita conteúdo duplicado quando a mesma página tem várias URLs.
+
+## Open Graph (compartilhamento)
+
+```html
+<meta property="og:title" content="Estrutura semântica" />
+<meta property="og:description" content="header, nav, main e article na prática." />
+<meta property="og:image" content="https://cursos.exemplo.com/og/semantica.png" />
+<meta property="og:type" content="article" />
+```
+
+É isso que vira o cartão bonito no WhatsApp/Slack/LinkedIn.
+
+## Hierarquia de headings
+
+```html
+<h1>SEO e meta tags</h1>
+<h2>O head essencial</h2>
+<h2>Open Graph</h2>
+<h3>Título e imagem</h3>
+```
+
+- um `h1` único que resume a página;
+- níveis sem saltos;
+- heading escolhido por **estrutura**, nunca pelo tamanho visual (isso é CSS).
+
+## Dados estruturados
+
+```html
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    "name": "Trilha de Desenvolvimento Web",
+    "provider": { "@type": "Organization", "name": "Empresa" }
+  }
+</script>
+```
+
+JSON-LD habilita rich results (avaliações, breadcrumbs) — verifique com o teste
+de resultados avançados do Google.
+
+## Checklist rápido
+
+1. `title` + `description` únicos e descritivos.
+2. `canonical` correto.
+3. OG tags completas.
+4. Um `h1`, hierarquia limpa.
+5. URLs amigáveis e conteúdo indexável (não esconda tudo atrás de JS).

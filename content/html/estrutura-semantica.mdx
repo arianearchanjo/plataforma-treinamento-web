@@ -1,0 +1,71 @@
+# Estrutura semântica
+
+O HTML5 introduziu elementos que descrevem o **papel** de cada região da página.
+Eles substituem a sopa de `<div class="...">` e melhoram navegação, SEO e
+acessibilidade de graça.
+
+## As regiões principais
+
+```html
+<body>
+  <header>
+    <nav aria-label="Principal">
+      <a href="/">Início</a>
+      <a href="/cursos">Cursos</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <h1>Título do post</h1>
+      <p>Conteúdo independente, que faria sentido sozinho.</p>
+    </article>
+
+    <aside>
+      <p>Conteúdo tangencial: posts relacionados, anúncios…</p>
+    </aside>
+  </main>
+
+  <footer>
+    <p>© 2026 Empresa</p>
+  </footer>
+</body>
+```
+
+| Elemento     | Papel                                            |
+| ------------ | ------------------------------------------------ |
+| `<header>`   | Introdução do documento ou de uma seção          |
+| `<nav>`      | Blocos de navegação                              |
+| `<main>`     | Conteúdo central único da página (um por página) |
+| `<article>`  | Conteúdo autônomo (post, produto, comentário)    |
+| `<section>`  | Agrupamento temático, geralmente com heading     |
+| `<aside>`    | Conteúdo relacionado/tangencial                  |
+| `<footer>`   | Rodapé do documento ou seção                     |
+
+## article × section
+
+Regra prática: pergunte-se *"esse bloco faria sentido num feed RSS sozinho?"*
+
+- Se sim → `<article>`
+- Se ele só agrupa temas da página atual → `<section>`
+- Se é só para aplicar estilo → continue usando `<div>` (e tudo bem!)
+
+## Headings com hierarquia
+
+```html
+<h1>Estrutura semântica</h1>
+<h2>Regiões principais</h2>
+<h3>O header</h3>
+<h3>O footer</h3>
+<h2>article × section</h2>
+```
+
+Não pule níveis (`h2` direto pra `h4`) e use **um único `h1` por página**.
+Usuários de leitores de tela navegam pelo outline de headings — hierarquia
+quebrada é labirinto.
+
+## Landmarks automáticos
+
+Elementos semânticos viram *landmarks*: regiões navegáveis por atalho nos
+leitores de tela (`NVDA`, `VoiceOver`). Um `<div>` nunca vira landmark —
+mesmo com classes bonitas.

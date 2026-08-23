@@ -1,0 +1,73 @@
+# Formulários e validação
+
+Formulários são onde a web *conversa* com o usuário — e onde boa marcação
+economiza muito JavaScript.
+
+## Campos com rótulo acessível
+
+```html
+<form action="/cadastro" method="post">
+  <label for="email">E-mail</label>
+  <input id="email" name="email" type="email" required />
+
+  <label for="senha">Senha</label>
+  <input id="senha" name="senha" type="password" minlength="8" required />
+
+  <button type="submit">Criar conta</button>
+</form>
+```
+
+O par `label[for]` + `input[id]`:
+
+- cria associação **acessível** (leitor de tela anuncia o rótulo);
+- torna o texto do label clicável (foco vai pro campo);
+- aumenta a área de toque no mobile.
+
+## Tipos de input que trabalham por você
+
+| Tipo            | Efeito                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `type="email"`  | Valida formato de e-mail + teclado otimizado               |
+| `type="number"` | Restringe a números, teclado numérico                      |
+| `type="date"`   | Datepicker nativo                                          |
+| `type="url"`    | Valida URLs                                                |
+| `type="search"` | Campo de busca semântico                                   |
+
+## Validação nativa
+
+```html
+<input
+  type="text"
+  name="usuario"
+  required
+  minlength="3"
+  maxlength="20"
+  pattern="[a-zA-Z0-9_]+"
+  title="Use letras, números e underscore"
+/>
+```
+
+- `required` impede o envio vazio;
+- `minlength`/`maxlength` delimitam tamanho;
+- `pattern` aplica uma regex;
+- o navegador exibe mensagens nativas antes de qualquer JS rodar.
+
+Para estilizar os estados: `:valid`, `:invalid`, `:user-invalid`.
+
+```css
+input:user-invalid {
+  border-color: #dc2626;
+}
+```
+
+## Semântica além do campo
+
+- `<fieldset>` agrupa campos relacionados; `<legend>` dá título ao grupo.
+- `<select>`/`<option>` para listas fechadas.
+- `<button type="submit">` vs `<button type="button">`: sempre declare o tipo!
+
+## Quando evoluir pra JS
+
+Validação nativa cobre 80% dos casos. Frameworks entram quando você precisa de
+validação assíncrona (e-mail já cadastrado) ou UX customizada — mas mantenha os
+campos semânticos mesmo assim.

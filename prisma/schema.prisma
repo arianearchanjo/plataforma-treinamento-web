@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================
+// Better Auth (modelos exigidos pelo adapter)
+// =====================================
+
+model User {
+  id            String           @id
+  name          String
+  email         String
+  emailVerified Boolean          @default(false)
+  image         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  progresso     ProgressoLicao[]
+  tentativas    TentativaQuiz[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+// =====================================
+// Domínio da plataforma
+// =====================================
+
+/// Trilha de tecnologias (12 módulos). Conteúdo das aulas vive em arquivos MDX;
+/// o banco guarda apenas metadados estruturais e dados por usuário.
+model Modulo {
+  id     Int     @id @default(autoincrement())
+  slug   String  @unique
+  numero Int
+  titulo String
+  corHex String
+  licoes Licao[]
+}
+
+model Licao {
+  id           Int              @id @default(autoincrement())
+  moduloId     Int
+  modulo       Modulo           @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  slug         String
+  titulo       String
+  ordem        Int
+  conteudoPath String
+  progresso    ProgressoLicao[]
+  quiz         Quiz?
+
+  @@unique([moduloId, slug])
+}
+
+model ProgressoLicao {
+  id          Int       @id @default(autoincrement())
+  usuarioId   String
+  usuario     User      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  licaoId     Int
+  licao       Licao     @relation(fields: [licaoId], references: [id], onDelete: Cascade)
+  concluida   Boolean   @default(false)
+  concluidaEm DateTime?
+
+  @@unique([usuarioId, licaoId])
+}
+
+model Quiz {
+  id        Int        @id @default(autoincrement())
+  licaoId   Int        @unique
+  licao     Licao      @relation(fields: [licaoId], references: [id], onDelete: Cascade)
+  perguntas Pergunta[]
+}
+
+model Pergunta {
+  id           Int           @id @default(autoincrement())
+  quizId       Int
+  quiz         Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  enunciado    String        @db.Text
+  alternativas Alternativa[]
+}
+
+model Alternativa {
+  id         Int      @id @default(autoincrement())
+  perguntaId Int
+  pergunta   Pergunta @relation(fields: [perguntaId], references: [id], onDelete: Cascade)
+  texto      String
+  correta    Boolean
+  explicacao String   @db.Text
+}
+
+model TentativaQuiz {
+  id        Int      @id @default(autoincrement())
+  usuarioId String
+  usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  quizId    Int
+  acertos   Int
+  total     Int
+  criadaEm  DateTime @default(now())
+
+  @@index([quizId])
+}

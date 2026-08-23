@@ -1,0 +1,57 @@
+# Mídia e acessibilidade
+
+O HTML5 trouxe mídia nativa (`<video>`, `<audio>`, `<picture>`) e, junto com
+ela, a responsabilidade de tornar tudo utilizável por **qualquer pessoa**.
+
+## Vídeo e áudio sem plugins
+
+```html
+<video controls preload="metadata" width="640" poster="capa.jpg">
+  <source src="aula.webm" type="video/webm" />
+  <source src="aula.mp4" type="video/mp4" />
+  <track kind="captions" src="legendas-ptbr.vtt" srclang="pt-BR" label="Português" />
+  Seu navegador não suporta vídeo HTML5.
+</video>
+```
+
+- múltiplos `<source>` = fallback de codec;
+- `<track>` adiciona legendas (essenciais para surdos e ambientes barulhentos);
+- atributos úteis: `controls`, `muted`, `loop`, `autoplay` (use com som desligado!).
+
+## Imagens responsivas e descritas
+
+```html
+<img
+  src="grafico.png"
+  alt="Vendas cresceram 40% no segundo semestre"
+  loading="lazy"
+  decoding="async"
+/>
+```
+
+Regras de ouro do `alt`:
+
+1. Imagem **informativa** → descreva o que ela comunica.
+2. Imagem **decorativa** → `alt=""` (vazio), para leitores ignorarem.
+3. Imagem é um link → descreva o destino, não o arquivo.
+
+Imagens decorativas com `alt="imagem"` poluem a navegação de quem usa screen
+reader. Vazio vale mais que genérico.
+
+### Art direction com picture
+
+```html
+<picture>
+  <source media="(max-width: 600px)" srcset="hero-mobile.jpg" />
+  <img src="hero.jpg" alt="" />
+</picture>
+```
+
+## Acessibilidade como parte do conteúdo
+
+- Contraste mínimo WCAG AA (4.5:1 em texto normal).
+- Nunca dependa só de cor para transmitir informação.
+- Legendas/captions não são opcionais em mídia institucional.
+
+Acessibilidade não é checklist final: é qualidade embutida na marcação desde o
+primeiro commit.

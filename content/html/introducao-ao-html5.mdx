@@ -1,0 +1,71 @@
+# Introdução ao HTML5
+
+**HTML (HyperText Markup Language)** é a linguagem que dá estrutura ao conteúdo
+de toda a web. O HTML5, versão atual, trouxe elementos semânticos, mídia nativa
+e APIs que dispensaram plugins como o Flash.
+
+## Anatomia de um documento
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minha primeira página</title>
+  </head>
+  <body>
+    <h1>Olá, mundo!</h1>
+    <p>Meu parágrafo de texto.</p>
+  </body>
+</html>
+```
+
+- `<!DOCTYPE html>` ativa o **standards mode**: sem ele o navegador entra em
+  *quirks mode* e reproduz bugs de décadas passadas.
+- `<html lang="pt-BR">` informa o idioma — essencial para leitores de tela e
+  tradutores.
+- `<meta charset="utf-8">` garante acentuação correta.
+- A meta `viewport` faz o layout se comportar bem em telas pequenas.
+
+## Elementos, tags e atributos
+
+Um elemento normalmente tem tag de abertura, conteúdo e tag de fechamento:
+
+```html
+<a href="https://developer.mozilla.org" target="_blank" rel="noopener">
+  Documentação MDN
+</a>
+```
+
+Elementos *void* não têm fechamento: `<img>`, `<br>`, `<input>`, `<hr>`.
+
+```html
+<img src="foto.jpg" alt="Equipe do time no offsite de 2026" width="480" />
+```
+
+## Aninhamento e validade
+
+Tags devem fechar na ordem inversa em que abriram:
+
+```html
+<!-- ✗ inválido -->
+<p><strong>texto</p></strong>
+
+<!-- ✓ válido -->
+<p><strong>texto</strong></p>
+```
+
+Valide sempre seu HTML com o [validador do W3C](https://validator.w3.org/) —
+marcação inválida gera bugs difíceis de rastrear e prejudica acessibilidade.
+
+## Por isso importa
+
+HTML mal estruturado derruba SEO, acessibilidade e manutenibilidade de uma vez.
+Antes de sair estilizando com CSS, acerte a base: cada elemento com significado,
+cada imagem com `alt`, cada página com um único `h1`.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos:
+significado da sigla HTML, papel do DOCTYPE e o atributo `alt`.

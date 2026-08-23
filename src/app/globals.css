@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/*
+ * Paleta de identidade por tecnologia (usada nos badges/barras dos módulos).
+ * Cores herdadas do protótipo estático + tons escolhidos para Auth/Jotai/Biome/Vitest:
+ *  - HTML    #e44d26 (laranja oficial)
+ *  - CSS     #2965f1 (azul oficial)
+ *  - JS      #d9a300 (amarelo escurecido p/ contraste)
+ *  - TS      #3178c6 (azul oficial)
+ *  - React   #0891b2 (ciano)
+ *  - Next.js #6e56cf (roxo)
+ *  - Tailwind #ec4899 (rosa)
+ *  - Prisma  #0f9488 (teal)
+ *  - Better-Auth #a855f7 (roxo-rosado)
+ *  - Jotai   #0284c7 (azul-céu)
+ *  - Biome   #16a34a (verde)
+ *  - Vitest  #84cc16 (lima)
+ */
+@theme {
+  --color-modulo-html: #e44d26;
+  --color-modulo-css: #2965f1;
+  --color-modulo-js: #d9a300;
+  --color-modulo-typescript: #3178c6;
+  --color-modulo-react: #0891b2;
+  --color-modulo-nextjs: #6e56cf;
+  --color-modulo-tailwind: #ec4899;
+  --color-modulo-prisma: #0f9488;
+  --color-modulo-betterauth: #a855f7;
+  --color-modulo-jotai: #0284c7;
+  --color-modulo-biome: #16a34a;
+  --color-modulo-vitest: #84cc16;
+}

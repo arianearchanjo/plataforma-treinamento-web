@@ -1,0 +1,25 @@
+# dependências
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# build gerado do prisma client
+src/generated/
+
+# ambiente
+.env
+.env*.local
+
+# testes
+coverage/
+
+# typescript incremental
+*.tsbuildinfo
+
+# sistema
+*.log
+.DS_Store
+Thumbs.db
