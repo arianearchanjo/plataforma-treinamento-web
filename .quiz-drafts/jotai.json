@@ -1,0 +1,206 @@
+{
+  "jotai/introducao-jotai": [
+    {
+      "enunciado": "O que é o Jotai no ecossistema React?",
+      "alternativas": [
+        {
+          "texto": "Uma biblioteca de gerenciamento de estado baseada em átomos, inspirada no Recoil",
+          "correta": true,
+          "explicacao": "Jotai divide o estado em pequenas unidades (átomos) reativas, com re-render granular."
+        },
+        {
+          "texto": "Um framework de roteamento para Next.js",
+          "explicacao": "Roteamento é outra responsabilidade; Jotai foca exclusivamente em estado."
+        },
+        {
+          "texto": "Uma biblioteca de estilização de componentes",
+          "explicacao": "Estilização é domínio de CSS/Tailwind/Styled Components, não do Jotai."
+        },
+        {
+          "texto": "Um ORM para acessar banco de dados",
+          "explicacao": "ORM é camada de dados (ex.: Prisma); Jotai é estado de cliente no React."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que o hook useAtom retorna?",
+      "alternativas": [
+        {
+          "texto": "Um par [valor, funcaoDeEscrita], no espírito do useState",
+          "correta": true,
+          "explicacao": "useAtom(atom) devolve o valor atual e o setter, permitindo ler e escrever o átomo."
+        },
+        {
+          "texto": "Um único objeto com todos os métodos do estado",
+          "explicacao": "Ele retorna uma tupla de dois elementos, não um objeto único."
+        },
+        {
+          "texto": "Apenas o valor atual do átomo",
+          "explicacao": "Quem retorna só o valor é o useAtomValue; useAtom retorna valor e setter."
+        },
+        {
+          "texto": "Apenas a função de escrita do átomo",
+          "explicacao": "Quem retorna só o setter é o useSetAtom; useAtom retorna ambos."
+        }
+      ]
+    },
+    {
+      "enunciado": "Por que o re-render granular é vantajoso no Jotai?",
+      "alternativas": [
+        {
+          "texto": "Só os componentes que consomem o átomo alterado são re-renderizados",
+          "correta": true,
+          "explicacao": "Isso evita re-renders desnecessários em toda a árvore, mantendo a UI rápida."
+        },
+        {
+          "texto": "Todos os componentes da página re-renderizam junto",
+          "explicacao": "Esse é justamente o problema que o Jotai evita comparado a um estado centralizado simples."
+        },
+        {
+          "texto": "Nenhum componente re-renderiza nunca",
+          "explicacao": "Os consumidores do átomo mudado ainda re-renderizam; os demais não."
+        },
+        {
+          "texto": "Exige sempre um Provider para funcionar",
+          "explicacao": "Na configuração comum o Jotai usa uma store global; Provider é opcional."
+        }
+      ]
+    }
+  ],
+  "jotai/atomos-e-derived-atoms": [
+    {
+      "enunciado": "Qual a diferença entre useAtomValue e useSetAtom?",
+      "alternativas": [
+        {
+          "texto": "useAtomValue assina só o valor; useSetAtom pega só a função de escrita",
+          "correta": true,
+          "explicacao": "Separar leitura e escrita evita re-render em componentes que apenas disparam ações."
+        },
+        {
+          "texto": "São exatamente a mesma coisa com nomes diferentes",
+          "explicacao": "Eles têm responsabilidades distintas: um lê, o outro escreve."
+        },
+        {
+          "texto": "useSetAtom serve para ler o valor do átomo",
+          "explicacao": "useSetAtom retorna apenas o setter, não o valor."
+        },
+        {
+          "texto": "useAtomValue serve para escrever no átomo",
+          "explicacao": "useAtomValue retorna apenas o valor; para escrever use useSetAtom ou useAtom."
+        }
+      ]
+    },
+    {
+      "enunciado": "Como funciona um átomo derivado (read-only)?",
+      "alternativas": [
+        {
+          "texto": "Ele calcula seu valor a partir de outros átomos via 'get', recalculando quando eles mudam",
+          "correta": true,
+          "explicacao": "A função recebe get e deriva o valor; qualquer dependência alterada atualiza o derivado."
+        },
+        {
+          "texto": "Ele armazena seu próprio estado independente dos demais átomos",
+          "explicacao": "Átomos derivados não guardam estado próprio; eles refletem outros átomos."
+        },
+        {
+          "texto": "Ele só pode ser escrito, nunca lido",
+          "explicacao": "Isso descreve um write-only atom, não um derivado de leitura."
+        },
+        {
+          "texto": "Ele exige obrigatoriamente um Provider para funcionar",
+          "explicacao": "Átomos derivados funcionam com a store padrão, sem Provider obrigatório."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que é o padrão writeOnlyAtom?",
+      "alternativas": [
+        {
+          "texto": "Um átomo que executa uma ação sem valor legível, usado via useSetAtom",
+          "correta": true,
+          "explicacao": "É ideal para ações que tocam múltiplos átomos, como resetar formulário ou logout."
+        },
+        {
+          "texto": "Um átomo que só pode ser lido e nunca escrito",
+          "explicacao": "Isso é um átomo derivado de leitura, não write-only."
+        },
+        {
+          "texto": "Um átomo idêntico ao useState do React",
+          "explicacao": "writeOnlyAtom é um conceito de Jotai para ações, não um estado local de componente."
+        },
+        {
+          "texto": "Um átomo que obrigatoriamente precisa de Provider",
+          "explicacao": "Provider é opcional; o padrão funciona com a store global."
+        }
+      ]
+    }
+  ],
+  "jotai/padroes-de-uso": [
+    {
+      "enunciado": "Por que é perigoso criar um átomo dentro do corpo de um componente?",
+      "alternativas": [
+        {
+          "texto": "O átomo é recriado a cada render, perdendo o estado e vazando memória",
+          "correta": true,
+          "explicacao": "Átomos devem ser estáveis (no módulo); recriá-los por render quebra o estado e a performance."
+        },
+        {
+          "texto": "Isso melhora a performance da aplicação",
+          "explicacao": "É o oposto: recriar átomos a cada render prejudica performance e estado."
+        },
+        {
+          "texto": "Não acontece nada de errado, é uma prática recomendada",
+          "explicacao": "É uma armadilha conhecida; nunca crie átomos dentro do componente."
+        },
+        {
+          "texto": "Isso cria automaticamente um Provider novo",
+          "explicacao": "Criar átomo no componente não cria Provider; só gera instâncias novas do átomo."
+        }
+      ]
+    },
+    {
+      "enunciado": "Quando NÃO usar o Jotai para dados vindos de uma API?",
+      "alternativas": [
+        {
+          "texto": "Use React Query (TanStack Query); Jotai é para estado de cliente, não server state",
+          "correta": true,
+          "explicacao": "Server state tem cache/revalidação melhores no React Query; Jotai brilha em estado de cliente."
+        },
+        {
+          "texto": "Use Context API para todas as chamadas de API",
+          "explicacao": "Context não resolve cache nem revalidação; React Query é a escolha certa."
+        },
+        {
+          "texto": "Use Redux obrigatoriamente para qualquer fetch",
+          "explicacao": "Redux não é obrigatório; a recomendação é React Query para server state."
+        },
+        {
+          "texto": "O Jotai é a ferramenta ideal para server state e deve ser sempre usado",
+          "explicacao": "Jotai é para estado de cliente; server state cabe melhor no React Query."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que é o padrão 'split atoms'?",
+      "alternativas": [
+        {
+          "texto": "Criar um átomo por item de uma lista, para re-render isolado de cada item",
+          "correta": true,
+          "explicacao": "O split atom mantém um átomo de átomos, fazendo cada item re-renderizar de forma independente."
+        },
+        {
+          "texto": "Dividir o bundle de código em vários arquivos menores",
+          "explicacao": "Isso é code splitting, não o padrão split atoms do Jotai."
+        },
+        {
+          "texto": "Criar múltiplas stores globais diferentes",
+          "explicacao": "O padrão trata de átomos por item, não de múltiplas stores."
+        },
+        {
+          "texto": "Remover todos os átomos derivados da aplicação",
+          "explicacao": "Split atoms é sobre listas de átomos, não sobre remover derivados."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "better-auth/introducao-better-auth": [
+    {
+      "enunciado": "Por que o handler do Better-Auth no Next.js fica em `src/app/api/auth/[...all]/route.ts`?",
+      "alternativas": [
+        {
+          "texto": "Porque `[...all]` é um segmento catch-all que encaminha qualquer sub-rota de /api/auth para o mesmo handler",
+          "correta": true,
+          "explicacao": "Assim endpoints como sign-in/email, sign-up/email, sign-out e get-session, além dos de plugins, funcionam sem criar um arquivo para cada um."
+        },
+        {
+          "texto": "Porque o Next.js exige que rotas de autenticação usem esse nome fixo",
+          "explicacao": "Não há exigência do framework; o nome do parâmetro é livre, o que importa é ser catch-all."
+        },
+        {
+          "texto": "Porque o Better-Auth precisa de uma rota estática para gerar HTML de login",
+          "explicacao": "O Better-Auth não gera telas; as páginas de login são feitas por você."
+        },
+        {
+          "texto": "Porque catch-all desabilita a verificação de origem das requisições",
+          "explicacao": "A verificação de origem é controlada por trustedOrigins e continua ativa."
+        }
+      ]
+    },
+    {
+      "enunciado": "Qual é a diferença entre a instância `auth` e o `authClient` do projeto?",
+      "alternativas": [
+        {
+          "texto": "`auth` é a instância de servidor, com acesso ao banco e ao segredo; `authClient` roda no navegador e conversa com /api/auth via fetch",
+          "correta": true,
+          "explicacao": "Por isso auth é usado em Server Components, Route Handlers e Server Actions, enquanto authClient fica em Client Components."
+        },
+        {
+          "texto": "São a mesma coisa, apenas com nomes diferentes por conveniência",
+          "explicacao": "Têm superfícies e ambientes de execução distintos, e apenas uma delas pode tocar o banco."
+        },
+        {
+          "texto": "`authClient` é a instância de servidor e `auth` a de navegador",
+          "explicacao": "É o inverso: authClient é criado com createAuthClient de better-auth/react."
+        },
+        {
+          "texto": "`auth` só serve para gerar os models do Prisma via CLI",
+          "explicacao": "A CLI lê o auth.ts para gerar models, mas auth é sobretudo a API de autenticação no servidor."
+        }
+      ]
+    },
+    {
+      "enunciado": "Para que serve a opção `trustedOrigins` na configuração do `betterAuth`?",
+      "alternativas": [
+        {
+          "texto": "Lista as origens autorizadas a fazer requisições autenticadas, servindo de proteção contra CSRF",
+          "correta": true,
+          "explicacao": "Requisições vindas de origens não listadas são recusadas; em produção deve conter apenas o domínio real da aplicação."
+        },
+        {
+          "texto": "Define quais provedores OAuth podem ser usados no login",
+          "explicacao": "Provedores sociais são configurados em socialProviders, não em trustedOrigins."
+        },
+        {
+          "texto": "Determina de quais IPs o banco de dados aceita conexões",
+          "explicacao": "Isso é configuração de rede/banco e não tem relação com a biblioteca de autenticação."
+        },
+        {
+          "texto": "Habilita CORS irrestrito para facilitar o desenvolvimento local",
+          "explicacao": "É o contrário de irrestrito: trata-se de uma lista de permissão explícita."
+        }
+      ]
+    }
+  ],
+  "better-auth/email-e-senha": [
+    {
+      "enunciado": "Como a senha do usuário é guardada quando o método email/senha está habilitado?",
+      "alternativas": [
+        {
+          "texto": "Como um hash derivado com salt aleatório por usuário (scrypt por padrão), gravado na tabela `account`",
+          "correta": true,
+          "explicacao": "O hash é irreversível e no login o sistema recomputa o valor com o mesmo salt para comparar; o salt impede uso de rainbow tables."
+        },
+        {
+          "texto": "Criptografada com uma chave simétrica, para poder ser descriptografada quando necessário",
+          "explicacao": "Senhas nunca devem ser reversíveis; se pudessem ser descriptografadas, um vazamento da chave exporia todas elas."
+        },
+        {
+          "texto": "Em texto puro na tabela `user`, protegida apenas pelo acesso restrito ao banco",
+          "explicacao": "Armazenar senha em texto puro é uma falha grave de segurança e não é o que a biblioteca faz."
+        },
+        {
+          "texto": "Apenas no cookie de sessão do navegador, nunca no servidor",
+          "explicacao": "O cookie guarda o token de sessão; a credencial precisa estar no servidor como hash para permitir logins futuros."
+        }
+      ]
+    },
+    {
+      "enunciado": "Por que a mensagem de erro no login deve ser genérica, como \"E-mail ou senha inválidos\"?",
+      "alternativas": [
+        {
+          "texto": "Para não revelar se um e-mail está cadastrado, evitando enumeração de usuários",
+          "correta": true,
+          "explicacao": "Diferenciar 'usuário não existe' de 'senha errada' permite a um atacante montar uma lista de contas válidas para atacar."
+        },
+        {
+          "texto": "Porque a biblioteca não informa qual foi o motivo real da falha",
+          "explicacao": "O objeto de erro traz código e mensagem; a escolha por uma mensagem genérica é deliberada e de segurança."
+        },
+        {
+          "texto": "Porque mensagens específicas quebram a acessibilidade do formulário",
+          "explicacao": "Acessibilidade depende de anunciar o erro corretamente, por exemplo com role=\"alert\", não da especificidade do texto."
+        },
+        {
+          "texto": "Porque mensagens longas aumentam o risco de XSS",
+          "explicacao": "O risco de XSS vem de renderizar HTML não sanitizado, não do tamanho da mensagem."
+        }
+      ]
+    },
+    {
+      "enunciado": "Por que não se deve criar usuários com senha diretamente via `prisma.user.create()`?",
+      "alternativas": [
+        {
+          "texto": "Porque a credencial hasheada vive na tabela `account`; sem passar por `auth.api.signUpEmail` o login não funcionaria",
+          "correta": true,
+          "explicacao": "Usar a API de cadastro garante que o hash seja gerado do mesmo modo e que os registros relacionados sejam criados corretamente."
+        },
+        {
+          "texto": "Porque o Prisma não permite escrever nas tabelas geradas pelo Better-Auth",
+          "explicacao": "Tecnicamente é possível escrever; o problema é produzir um estado inconsistente de autenticação."
+        },
+        {
+          "texto": "Porque `create` não aceita campos opcionais como imagem e nome",
+          "explicacao": "Campos opcionais são perfeitamente aceitos pelo Prisma; a questão é o fluxo de credenciais."
+        },
+        {
+          "texto": "Porque o cadastro só pode ocorrer no navegador, nunca no servidor",
+          "explicacao": "É possível cadastrar no servidor, justamente usando auth.api.signUpEmail em seeds ou telas administrativas."
+        }
+      ]
+    }
+  ],
+  "better-auth/protecao-de-rotas": [
+    {
+      "enunciado": "Onde a sessão realmente vive nesse modelo de autenticação?",
+      "alternativas": [
+        {
+          "texto": "Em uma linha na tabela `session` do banco; o cookie httpOnly carrega apenas o token que aponta para ela",
+          "correta": true,
+          "explicacao": "Por isso o signOut ou a revogação de uma sessão têm efeito imediato: o registro deixa de existir no banco."
+        },
+        {
+          "texto": "Inteiramente dentro de um JWT autocontido no localStorage",
+          "explicacao": "O padrão usa cookie httpOnly e sessão em banco; localStorage seria acessível a XSS e não permitiria revogação imediata."
+        },
+        {
+          "texto": "Na memória do servidor Next.js, perdida a cada reinício",
+          "explicacao": "Sessões em memória não sobreviveriam a deploys nem funcionariam com múltiplas instâncias."
+        },
+        {
+          "texto": "No proxy.ts, que mantém a lista de usuários autenticados",
+          "explicacao": "O proxy não guarda estado; ele apenas inspeciona a requisição atual."
+        }
+      ]
+    },
+    {
+      "enunciado": "Qual é o papel da checagem feita no `proxy.ts` do projeto?",
+      "alternativas": [
+        {
+          "texto": "Uma verificação otimista e barata da presença do cookie, redirecionando visitantes anônimos; a validação real acontece nos Server Components e Route Handlers",
+          "correta": true,
+          "explicacao": "Isso evita uma consulta ao banco em toda requisição casada pelo matcher, mantendo a segurança na camada que efetivamente lê os dados."
+        },
+        {
+          "texto": "Validar criptograficamente a sessão para dispensar checagens posteriores",
+          "explicacao": "Ele não valida o token; um cookie expirado ou forjado passa pelo proxy e é barrado depois por getSession()."
+        },
+        {
+          "texto": "Aplicar regras de permissão por papel do usuário antes de qualquer página",
+          "explicacao": "Para isso seria necessário carregar o usuário do banco, o que o proxy deliberadamente evita."
+        },
+        {
+          "texto": "Substituir a necessidade de proteger Server Actions e Route Handlers",
+          "explicacao": "Server Actions e Route Handlers são endpoints públicos e precisam checar a sessão por conta própria."
+        }
+      ]
+    },
+    {
+      "enunciado": "Em um Route Handler protegido que grava progresso, de onde deve vir o `usuarioId`?",
+      "alternativas": [
+        {
+          "texto": "De `session.user.id`, obtido com auth.api.getSession a partir dos headers da requisição",
+          "correta": true,
+          "explicacao": "A sessão é a única fonte confiável de identidade; qualquer id enviado pelo cliente pode ser trocado para escrever em nome de outra pessoa."
+        },
+        {
+          "texto": "Do corpo JSON da requisição, enviado pelo formulário",
+          "explicacao": "O corpo é totalmente controlado pelo cliente e permitiria falsificar a identidade."
+        },
+        {
+          "texto": "De um header customizado definido pelo componente React",
+          "explicacao": "Headers definidos no cliente também são manipuláveis e não provam identidade."
+        },
+        {
+          "texto": "De um parâmetro de query na URL, mais fácil de depurar",
+          "explicacao": "Query strings são igualmente controladas pelo cliente e não servem como fonte de autenticação."
+        }
+      ]
+    }
+  ]
+}

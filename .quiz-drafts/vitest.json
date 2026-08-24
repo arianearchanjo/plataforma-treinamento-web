@@ -1,0 +1,89 @@
+{
+  "vitest/introducao-vitest": [
+    {
+      "enunciado": "Qual é a principal diferença entre os matchers toBe e toEqual no Vitest?",
+      "alternativas": [
+        { "texto": "toBe compara valor e tipo com Object.is (referência/primitivo), enquanto toEqual compara o conteúdo de objetos e arrays profundamente.", "correta": true, "explicacao": "toBe usa igualdade estrita (Object.is); toEqual faz comparação estrutural recursiva, ideal para objetos e arrays derivados." },
+        { "texto": "toBe serve para objetos e toEqual apenas para números.", "explicacao": "É o contrário: toBe é melhor para primitivos/referências exatas, e toEqual para conteúdo profundo." },
+        { "texto": "Ambos são idênticos e podem ser usados sem distinção.", "explicacao": "Diferem na comparação de estrutura; usar toBe em objetos diferentes com mesmo conteúdo falha." },
+        { "texto": "toEqual é mais lento e deve ser evitado sempre.", "explicacao": "toEqual é a ferramenta correta para comparar conteúdo de objetos/arrays; não deve ser evitado." }
+      ]
+    },
+    {
+      "enunciado": "Qual comando roda os testes uma única vez e sai, sem modo watch?",
+      "alternativas": [
+        { "texto": "vitest run", "correta": true, "explicacao": "vitest run executa todos os testes uma vez e encerra, ideal para scripts e CI." },
+        { "texto": "vitest watch", "explicacao": "watch é o modo interativo que fica re-rodando ao salvar; não é o comando padrão de 'rodar uma vez'." },
+        { "texto": "vitest start", "explicacao": "Não existe esse subcomando no Vitest para rodar testes." },
+        { "texto": "vitest test --once", "explicacao": "A flag correta é --run ou o comando vitest run; --once não é a sintaxe." }
+      ]
+    },
+    {
+      "enunciado": "Por que o Vitest é considerado uma escolha natural em projetos baseados em Vite/Next.js?",
+      "alternativas": [
+        { "texto": "Porque reaproveita o pipeline de transformação do Vite, herdando config e sendo muito rápido com TS/ESM nativos.", "correta": true, "explicacao": "O Vitest roda sobre o mesmo ecossistema do Vite, aproveitando cache e transformação, o que o torna rápido e de configuração mínima." },
+        { "texto": "Porque é obrigatório no Next.js 16.", "explicacao": "Não é obrigatório; é apenas uma escolha conveniente e popular." },
+        { "texto": "Porque só funciona com banco de dados PostgreSQL.", "explicacao": "O Vitest é agnóstico a banco; lida com lógica em memória e mocks." },
+        { "texto": "Porque substitui o React por completo.", "explicacao": "O Vitest é um runner de testes, não substitui o React." }
+      ]
+    }
+  ],
+  "vitest/testes-de-componentes": [
+    {
+      "enunciado": "Qual query da Testing Library é geralmente preferida por refletir a acessibilidade real?",
+      "alternativas": [
+        { "texto": "getByRole", "correta": true, "explicacao": "getByRole localiza pelo papel ARIA (button, heading, textbox), aproximando-se do que leitores de tela e usuários percebem." },
+        { "texto": "getByTestId", "explicacao": "data-testId é útil apenas como último recurso; não reflete acessibilidade real." },
+        { "texto": "getByClassName", "explicacao": "Não é um query padrão da Testing Library e acopla a detalhes de estilo frágeis." },
+        { "texto": "getById", "explicacao": "Não existe esse query; IDs não são a forma semântica preferida de localizar elementos." }
+      ]
+    },
+    {
+      "enunciado": "Qual a diferença principal entre userEvent e fireEvent?",
+      "alternativas": [
+        { "texto": "userEvent simula interações reais do usuário (digitação, foco, async) de forma mais fiel; fireEvent dispara eventos simples e síncronos.", "correta": true, "explicacao": "userEvent replica melhor o comportamento humano e lida com assincronismo; fireEvent é mais básico e síncrono." },
+        { "texto": "fireEvent é mais lento e deve substituir userEvent.", "explicacao": "Na verdade userEvent é mais completo; fireEvent é mais leve mas menos fiel." },
+        { "texto": "São exatamente a mesma API com nomes diferentes.", "explicacao": "Têm propósitos e níveis de fidelidade diferentes." },
+        { "texto": "userEvent só funciona com jsdom desativado.", "explicacao": "userEvent funciona com jsdom e é justamente o ambiente típico de testes de componente." }
+      ]
+    },
+    {
+      "enunciado": "Por que se recomenda testar comportamento e não implementação interna de um componente?",
+      "alternativas": [
+        { "texto": "Porque testes acoplados à implementação quebram a cada refatoração, enquanto testar comportamento (clicar/ver resultado) resiste a mudanças internas.", "correta": true, "explicacao": "Testar pelo que o usuário vê/faz mantém o teste útil após refatorar o componente sem mudar sua função." },
+        { "texto": "Porque a implementação nunca pode ser testada.", "explicacao": "Pode, mas não é recomendado como foco principal por ser frágil a refatorações." },
+        { "texto": "Porque comportamento não pode ser afirmado com expect.", "explicacao": "Comportamento é justamente o que se afirma via queryers e interações." },
+        { "texto": "Porque implementação interna é sempre idêntica em todos os componentes.", "explicacao": "Cada componente tem implementação própria; é justamente essa variação que torna o teste frágil." }
+      ]
+    }
+  ],
+  "vitest/testes-de-servidor": [
+    {
+      "enunciado": "Por que a função corrigirQuiz do DevTrilha é fácil de testar com Vitest?",
+      "alternativas": [
+        { "texto": "Porque é uma função pura: recebe perguntas e respostas por parâmetro e devolve o resultado sem depender de banco ou framework.", "correta": true, "explicacao": "Funções puras são determinísticas e testáveis em milissegundos, bastando fornecer entradas e verificar saídas." },
+        { "texto": "Porque acessa o PostgreSQL diretamente em memória.", "explicacao": "Ela não acessa banco; essa independência é justamente o que facilita o teste." },
+        { "texto": "Porque usa somente variáveis globais.", "explicacao": "Usa parâmetros, não globais; globais tornariam o teste frágil." },
+        { "texto": "Porque depende do Next.js para rodar.", "explicacao": "É independente de framework, podendo ser testada isoladamente." }
+      ]
+    },
+    {
+      "enunciado": "Como testar um Route Handler do Next.js (POST /api/...) no Vitest?",
+      "alternativas": [
+        { "texto": "Instanciando um objeto Request nativo com a URL, método, headers e body, e afirmando sobre o Response retornado.", "correta": true, "explicacao": "Request e Response são padrão web e funcionam no Vitest, permitindo testar o handler de forma leve e sem jsdom." },
+        { "texto": "Fazendo uma requisição HTTP real para o servidor em produção.", "explicacao": "Testes unitários devem ser isolados; usar o servidor real não é determinístico nem rápido." },
+        { "texto": "Usando apenas console.log para inspecionar.", "explicacao": "console.log não é asserção e não automatiza a verificação." },
+        { "texto": "Não é possível testar Route Handlers.", "explicacao": "É perfeitamente possível testá-los com Request/Response e mocks." }
+      ]
+    },
+    {
+      "enunciado": "Qual a função de beforeEach e afterEach nos testes de servidor?",
+      "alternativas": [
+        { "texto": "beforeEach prepara o estado antes de cada teste (ex.: limpar mocks) e afterEach faz a limpeza (restaurar mocks), garantindo isolamento.", "correta": true, "explicacao": "Juntos evitam que um teste influencie o outro, mantendo os testes determinísticos e isolados." },
+        { "texto": "beforeEach apaga o banco e afterEach cria o banco.", "explicacao": "Essa não é a responsabilidade típica; ambos cuidam de preparação e limpeza de estado entre testes." },
+        { "texto": "Só existem em testes de componente, nunca em servidor.", "explicacao": "Estão disponíveis em todos os tipos de teste do Vitest." },
+        { "texto": "beforeEach roda uma única vez no arquivo inteiro.", "explicacao": "beforeEach roda antes de CADA teste; beforeAll é que roda uma vez." }
+      ]
+    }
+  ]
+}

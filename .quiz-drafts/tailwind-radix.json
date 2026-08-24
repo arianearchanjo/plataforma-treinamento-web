@@ -1,0 +1,60 @@
+{
+  "tailwind-radix/introducao-tailwind4": [
+    {
+      "enunciado": "No Tailwind CSS 4, como se habilita o framework sem um tailwind.config.js?",
+      "alternativas": [
+        { "texto": "Com a diretiva @import \"tailwindcss\"; no stylesheet global, e o @theme para tokens.", "correta": true, "explicacao": "O v4 é CSS-first: basta o @import e o @theme no CSS; a detecção de arquivos é automática." },
+        { "texto": "Criando obrigatoriamente um arquivo tailwind.config.js vazio.", "explicacao": "No v4 o arquivo de config JS não é obrigatório; a config vai no CSS." },
+        { "texto": "Instalando o plugin @tailwindcss/config.", "explicacao": "Não existe esse fluxo; o v4 usa configuração CSS-first." },
+        { "texto": "Usando a tag <tailwind> no HTML.", "explicacao": "Não há tag especial; usa-se o @import no CSS." }
+      ]
+    },
+    {
+      "enunciado": "Como o bloco @theme gera utilitários a partir de variáveis?",
+      "alternativas": [
+        { "texto": "Declarando variáveis como --color-brand: #...; o Tailwind cria utilitários bg-brand, text-brand e expõe var(--color-brand).", "correta": true, "explicacao": "O prefixo --color- gera cores; o valor vira utilitário e variável CSS reutilizável." },
+        { "texto": "Escrevendo --brand sem prefixo e esperando que vire classe.", "explicacao": "Sem o prefixo semântico (--color-, --spacing-), o utilitário não é gerado." },
+        { "texto": "Configurando tudo dentro de um arquivo JavaScript separado.", "explicacao": "No v4 a config de tokens é no CSS via @theme, não em JS." },
+        { "texto": "O @theme não gera utilitários, só documenta cores.", "explicacao": "O @theme justamente gera os utilitários a partir das variáveis." }
+      ]
+    },
+    {
+      "enunciado": "Qual das vantagens abaixo é citada para o Tailwind v4 sobre o v3?",
+      "alternativas": [
+        { "texto": "Configuração CSS-first via @theme, engine mais rápida (Lightning CSS) e detecção automática de arquivos.", "correta": true, "explicacao": "O v4 elimina tailwind.config.js, acelera o build e detecta arquivos automaticamente." },
+        { "texto": "Exige obrigatoriamente o arquivo tailwind.config.js.", "explicacao": "É o oposto: o v4 torna esse arquivo opcional." },
+        { "texto": "Removeu todos os utilitários de flexbox.", "explicacao": "Flexbox e outros utilitários continuam disponíveis." },
+        { "texto": "Só funciona com Sass.", "explicacao": "O v4 é CSS-first nativo, não depende de Sass." }
+      ]
+    }
+  ],
+  "tailwind-radix/radix-ui-acessibilidade": [
+    {
+      "enunciado": "O que significa dizer que o Radix UI é 'headless'?",
+      "alternativas": [
+        { "texto": "Fornece estrutura e comportamento (foco, ARIA, teclado) sem estilo, deixando a aparência para você com Tailwind.", "correta": true, "explicacao": "Headless = sem visual embutido; você estiliza enquanto herda a acessibilidade pronta." },
+        { "texto": "Significa que não tem cabeçalho (header) nos componentes.", "explicacao": "Headless refere-se à falta de estilo, não de cabeçalho." },
+        { "texto": "É um framework que substitui o React.", "explicacao": "Radix é uma biblioteca de primitivos para React, não substitui o React." },
+        { "texto": "Significa que não funciona sem internet.", "explicacao": "Headless aqui é conceito de arquitetura de UI, não de conectividade." }
+      ]
+    },
+    {
+      "enunciado": "Qual primitivo Radix o DevTrilha usa no QuizCard para as alternativas?",
+      "alternativas": [
+        { "texto": "RadioGroup", "correta": true, "explicacao": "O QuizCard usa @radix-ui/react-radio-group para permitir seleção única com navegação por teclado." },
+        { "texto": "Accordion", "explicacao": "Accordion não é usado para as alternativas do quiz." },
+        { "texto": "Slider", "explicacao": "Slider não é o componente das alternativas do quiz." },
+        { "texto": "Toast", "explicacao": "Toast é para notificações, não para seleção de alternativas." }
+      ]
+    },
+    {
+      "enunciado": "Como se estiliza o estado de um primitivo Radix com Tailwind?",
+      "alternativas": [
+        { "texto": "Usando seletores de atributos de dados, como data-[state=active]: e data-[highlighted]:.", "correta": true, "explicacao": "O Radix expõe estados via data attributes, e o Tailwind os estiliza com data-[...]:." },
+        { "texto": "Escrevendo CSS global para a tag <radix>.", "explicacao": "Não há tag <radix>; usa-se os data attributes nos elementos reais." },
+        { "texto": "Usando apenas a classe .active do Bootstrap.", "explicacao": "O projeto usa Tailwind, não Bootstrap, e os estados vêm dos data attributes do Radix." },
+        { "texto": "Não é possível estilizar estados do Radix.", "explicacao": "É justamente possível e comum via data-[state=...]:" }
+      ]
+    }
+  ]
+}

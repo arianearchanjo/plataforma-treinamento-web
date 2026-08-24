@@ -1,0 +1,206 @@
+{
+  "typescript/introducao-ao-typescript": [
+    {
+      "enunciado": "O que é o TypeScript em relação ao JavaScript?",
+      "alternativas": [
+        {
+          "texto": "Um superset do JavaScript que adiciona tipagem estática opcional por cima da linguagem",
+          "correta": true,
+          "explicacao": "TypeScript é um superset: todo JS válido também é TS, e ele adiciona anotações de tipo verificadas em tempo de compilação."
+        },
+        {
+          "texto": "Uma linguagem nova que substitui o JavaScript diretamente no navegador",
+          "explicacao": "O navegador não entende TypeScript; ele precisa ser transpilado para JavaScript antes de rodar."
+        },
+        {
+          "texto": "Um compilador que faz o JavaScript executar mais rápido em runtime",
+          "explicacao": "O tsc apenas converte TS em JS; não há ganho de performance em runtime por causa do TypeScript."
+        },
+        {
+          "texto": "Uma biblioteca de componentes de interface para React",
+          "explicacao": "TypeScript é uma ferramenta de tipagem/compilação, não uma biblioteca de UI."
+        }
+      ]
+    },
+    {
+      "enunciado": "Qual é o papel do compilador tsc?",
+      "alternativas": [
+        {
+          "texto": "Transpilar o código TypeScript para JavaScript que o navegador/Node consegue executar",
+          "correta": true,
+          "explicacao": "O tsc lê o tsconfig.json e gera arquivos .js equivalentes, além de apontar erros de tipo."
+        },
+        {
+          "texto": "Verificar tipos em tempo de execução, enquanto o programa está rodando",
+          "explicacao": "A checagem de tipo acontece em tempo de compilação; em runtime o TypeScript já foi removido."
+        },
+        {
+          "texto": "Baixar e instalar pacotes do npm automaticamente",
+          "explicacao": "Isso é função do npm, não do compilador tsc."
+        },
+        {
+          "texto": "Formatar e aplicar lint no código-fonte",
+          "explicacao": "Formatação e lint são responsabilidade de ferramentas como Biome/Prettier/ESLint."
+        }
+      ]
+    },
+    {
+      "enunciado": "Como o TypeScript e o runtime se dividem quanto aos erros?",
+      "alternativas": [
+        {
+          "texto": "O TS pega erros de tipo em compilação, mas erros lógicos (ex.: divisão por zero) ainda ocorrem em runtime",
+          "correta": true,
+          "explicacao": "TypeScript protege contra erros de tipo; validações de negócio e erros lógicos continuam sendo sua responsabilidade em runtime."
+        },
+        {
+          "texto": "O TypeScript elimina todos os erros possíveis antes e durante a execução",
+          "explicacao": "Ele some em runtime; não há checagem de tipo rodando, e erros lógicos persistem."
+        },
+        {
+          "texto": "O runtime é quem verifica os tipos das variáveis no navegador",
+          "explicacao": "Sem ferramentas extras, o JS em runtime não valida tipos; a verificação é em compilação."
+        },
+        {
+          "texto": "O tsc roda junto com a aplicação para garantir tipos em produção",
+          "explicacao": "O tsc só roda na compilação; o código entregue em produção é JavaScript puro."
+        }
+      ]
+    }
+  ],
+  "typescript/tipando-funcoes-e-objetos": [
+    {
+      "enunciado": "Qual a diferença prática entre 'interface' e 'type' para descrever objetos?",
+      "alternativas": [
+        {
+          "texto": "Interface é melhor para contratos de objeto e suporta extends/declaration merging; type serve para uniões, tuplas e aliases",
+          "correta": true,
+          "explicacao": "Ambos descrevem formas, mas type é mais flexível (uniões, tuplas) e interface foca em objetos com extensão direta."
+        },
+        {
+          "texto": "A palavra-chave 'type' não consegue descrever a forma de um objeto",
+          "explicacao": "Type sim descreve objetos; a diferença está em recursos como uniões e declaration merging."
+        },
+        {
+          "texto": "Interface não pode ser estendida por outras interfaces",
+          "explicacao": "Interface suporta extends nativamente, justamente um de seus pontos fortes."
+        },
+        {
+          "texto": "São idênticos em tudo e podem ser trocados sem qualquer diferença",
+          "explicacao": "Há diferenças reais, como declaration merging e suporte a uniões/tuplas no type."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que o símbolo '?' faz em uma propriedade de interface?",
+      "alternativas": [
+        {
+          "texto": "Torna a propriedade opcional, podendo estar ausente (e sendo tratada como undefined)",
+          "correta": true,
+          "explicacao": "A notação 'nome?: string' indica que a propriedade pode existir ou não, exigindo tratamento de undefined."
+        },
+        {
+          "texto": "Torna a propriedade somente leitura (readonly)",
+          "explicacao": "Readonly é a palavra-chave usada; '?' marca opcionalidade, não imutabilidade."
+        },
+        {
+          "texto": "Torna a propriedade obrigatória em todas as instâncias",
+          "explicacao": "É o oposto: '?' indica que ela não é obrigatória."
+        },
+        {
+          "texto": "Remove a propriedade do tipo resultante",
+          "explicacao": "A propriedade continua no tipo, apenas passa a ser opcional."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que significa o tipo 'number | string' em um parâmetro?",
+      "alternativas": [
+        {
+          "texto": "O valor pode ser um number OU um string, restrito a esses dois tipos",
+          "correta": true,
+          "explicacao": "A união com '|' lista os tipos aceitos; qualquer outro tipo é rejeitado em compilação."
+        },
+        {
+          "texto": "O valor é do tipo any, aceitando tudo sem checagem",
+          "explicacao": "União é tipada e restrita; any é a ausência de tipo, o que não é o caso aqui."
+        },
+        {
+          "texto": "O valor deve ser, ao mesmo tempo, number e string",
+          "explicacao": "União é 'ou'; para exigir os dois ao mesmo tempo seria necessário um objeto com ambos."
+        },
+        {
+          "texto": "Um array que contém numbers e strings misturados",
+          "explicacao": "Um array misto seria (number | string)[], com os colchetes; sem eles é um valor único."
+        }
+      ]
+    }
+  ],
+  "typescript/generics-e-utility-types": [
+    {
+      "enunciado": "Qual problema os generics resolvem em funções reutilizáveis?",
+      "alternativas": [
+        {
+          "texto": "Permitem que a função preserve o tipo entre entrada e saída sem recorrer ao 'any'",
+          "correta": true,
+          "explicacao": "Com <T>, o tipo do argumento guia o tipo de retorno, mantendo a segurança de tipo."
+        },
+        {
+          "texto": "Fazem o código executar mais rápido em runtime",
+          "explicacao": "Generics são apagados na compilação; não afetam a performance em runtime."
+        },
+        {
+          "texto": "Substituem completamente o uso de interfaces",
+          "explicacao": "Generics e interfaces são ferramentas complementares, não substitutas."
+        },
+        {
+          "texto": "Criam laços de repetição tipados",
+          "explicacao": "Generics parametrizam tipos; loops são estruturas de controle, não relacionados."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que a constraint 'extends' faz em um genérico como <T extends TemNome>?",
+      "alternativas": [
+        {
+          "texto": "Restringe T a tipos que satisfazem o contrato (ex.: possuem a propriedade 'nome')",
+          "correta": true,
+          "explicacao": "A constraint garante, dentro da função, acesso seguro às propriedades exigidas pelo extends."
+        },
+        {
+          "texto": "Torna o parâmetro de tipo obrigatório em todas as chamadas",
+          "explicacao": "O T já é obrigatório; extends limita quais tipos podem preenchê-lo."
+        },
+        {
+          "texto": "Remove toda a checagem de tipo do genérico",
+          "explicacao": "É o oposto: extends adiciona uma exigência de tipo."
+        },
+        {
+          "texto": "Define um valor padrão para quando nenhum tipo for passado",
+          "explicacao": "Valor padrão de tipo usa sintaxe de atribuição, não extends."
+        }
+      ]
+    },
+    {
+      "enunciado": "Qual utility type torna todas as propriedades de um tipo opcionais?",
+      "alternativas": [
+        {
+          "texto": "Partial",
+          "correta": true,
+          "explicacao": "Partial<T> deixa cada propriedade de T como opcional, ideal para atualizações parciais."
+        },
+        {
+          "texto": "Readonly",
+          "explicacao": "Readonly torna as propriedades somente leitura, não opcionais."
+        },
+        {
+          "texto": "Pick",
+          "explicacao": "Pick seleciona um subconjunto de propriedades, mantendo-as obrigatórias."
+        },
+        {
+          "texto": "Omit",
+          "explicacao": "Omit remove propriedades, não as torna opcionais."
+        }
+      ]
+    }
+  ]
+}

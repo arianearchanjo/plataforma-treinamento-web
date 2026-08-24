@@ -1,0 +1,147 @@
+{
+  "nextjs/introducao-ao-nextjs": [
+    {
+      "enunciado": "O que o Next.js adiciona em relação ao React puro?",
+      "alternativas": [
+        { "texto": "Roteamento, SSR/SSG, API routes e otimizações como imagens, num framework full-stack.", "correta": true, "explicacao": "Next.js é um framework sobre React que adiciona roteamento por arquivos, estratégias de renderização e backend no mesmo projeto." },
+        { "texto": "Nada, é apenas um alias para React.", "explicacao": "Next.js é um framework completo, não um apelido do React." },
+        { "texto": "Apenas um compilador de CSS.", "explicacao": "CSS é só uma das otimizações; o núcleo é roteamento e renderização." },
+        { "texto": "Um banco de dados embutido.", "explicacao": "O banco é separado (ex.: Prisma); Next não embute DB." }
+      ]
+    },
+    {
+      "enunciado": "No App Router, qual arquivo define a rota para a URL '/'?",
+      "alternativas": [
+        { "texto": "app/page.tsx", "correta": true, "explicacao": "page.tsx vira rota acessível; app/page.tsx corresponde exatamente a '/'." },
+        { "texto": "app/index.html", "explicacao": "Next usa page.tsx, não index.html, para definir rotas." },
+        { "texto": "app/layout.tsx", "explicacao": "layout.tsx é casca compartilhada, não rota pública." },
+        { "texto": "app/route.ts", "explicacao": "route.ts cria um endpoint de API, não a página '/'." }
+      ]
+    },
+    {
+      "enunciado": "Qual a diferença principal entre App Router e Pages Router?",
+      "alternativas": [
+        { "texto": "App Router usa pasta app/ com Server Components por padrão; Pages Router usa pages/ com componentes cliente.", "correta": true, "explicacao": "O App Router é o padrão moderno: app/, Server Components por padrão e layouts aninhados via layout.tsx." },
+        { "texto": "Ambos usam exatamente a mesma pasta pages/.", "explicacao": "O App Router usa app/, não pages/." },
+        { "texto": "App Router não suporta rotas.", "explicacao": "App Router é justamente o sistema de roteamento moderno." },
+        { "texto": "Pages Router é o padrão atual do curso.", "explicacao": "O curso usa App Router; Pages Router é legado." }
+      ]
+    }
+  ],
+  "nextjs/app-router": [
+    {
+      "enunciado": "No Next.js 16, como acessamos params dentro de uma page?",
+      "alternativas": [
+        { "texto": "Aguardando a Promise: const { slug } = await params;", "correta": true, "explicacao": "Desde o Next 15/16 params e searchParams são Promises e devem ser aguardados em componentes assíncronos." },
+        { "texto": "Diretamente como objeto: const { slug } = params;", "explicacao": "No Next 16 params é Promise; usá-lo direto quebra a leitura do valor." },
+        { "texto": "Via window.location sempre.", "explicacao": "params é a API do framework; window só existe no cliente." },
+        { "texto": "Não é possível acessar params.", "explicacao": "Params são acessíveis, apenas precisam de await." }
+      ]
+    },
+    {
+      "enunciado": "O que faz um arquivo app/blog/[slug]/page.tsx?",
+      "alternativas": [
+        { "texto": "Cria uma rota dinâmica em /blog/<qualquer-slug>.", "correta": true, "explicacao": "Colchetes definem segmento dinâmico; [slug] captura qualquer valor naquela posição da URL." },
+        { "texto": "Cria uma rota fixa chamada [slug].", "explicacao": "Os colchetes indicam variável, não nome literal." },
+        { "texto": "Bloqueia todas as rotas de blog.", "explicacao": "Ele define, não bloqueia, a rota dinâmica." },
+        { "texto": "Substitui o layout.tsx.", "explicacao": "page e layout têm funções diferentes; um não substitui o outro." }
+      ]
+    },
+    {
+      "enunciado": "Qual componente deve ser usado para navegação interna sem reload?",
+      "alternativas": [
+        { "texto": "Link do next/link", "correta": true, "explicacao": "Link faz transição client-side com prefetch, preservando o layout e evitando reload completo." },
+        { "texto": "a href comum do HTML", "explicacao": "a href causa reload completo; para rotas internas prefira Link." },
+        { "texto": "iframe", "explicacao": "iframe não é mecanismo de roteamento do Next." },
+        { "texto": "window.navigate", "explicacao": "Não é a API recomendada; use Link." }
+      ]
+    }
+  ],
+  "nextjs/server-components": [
+    {
+      "enunciado": "O que caracteriza um Server Component no App Router?",
+      "alternativas": [
+        { "texto": "Roda no servidor por padrão, pode acessar banco/segredos e envia pouco JS ao cliente.", "correta": true, "explicacao": "Server Components são o padrão no App Router: executam no servidor, acessam dados com segurança e não enviam sua lógica como JS." },
+        { "texto": "Sempre roda no navegador com useState.", "explicacao": "Isso descreve Client Components, não Server Components." },
+        { "texto": "Não pode ser função assíncrona.", "explicacao": "Server Components podem ser async e usar await." },
+        { "texto": "Envia todo o código para o cliente.", "explicacao": "Eles justamente minimizam o JS enviado ao cliente." }
+      ]
+    },
+    {
+      "enunciado": "Quando devemos adicionar 'use client' a um componente?",
+      "alternativas": [
+        { "texto": "Quando precisamos de estado, efeitos ou eventos do navegador.", "correta": true, "explicacao": "A diretiva 'use client' marca o limite de cliente, necessário para hooks e eventos do browser." },
+        { "texto": "Sempre, em todos os arquivos.", "explicacao": "Isso aumentaria o bundle sem necessidade; use só onde há interatividade." },
+        { "texto": "Nunca, é obsoleto.", "explicacao": "Ainda é necessária para Client Components." },
+        { "texto": "Somente em páginas de erro.", "explicacao": "Qualquer componente interativo precisa, não só erros." }
+      ]
+    },
+    {
+      "enunciado": "Quais dados podem ser passados de um Server Component para um Client Component?",
+      "alternativas": [
+        { "texto": "Apenas valores serializáveis (objetos plain, strings, números).", "correta": true, "explicacao": "A fronteira server/client exige serialização; funções e conexões de banco não cruzam." },
+        { "texto": "Qualquer coisa, inclusive funções e conexões de DB.", "explicacao": "Funções e conexões não são serializáveis e quebram a fronteira." },
+        { "texto": "Somente componentes React inteiros.", "explicacao": "Você passa props de dados, não componentes inteiros como props." },
+        { "texto": "Nenhum dado é permitido.", "explicacao": "Dados serializáveis são justamente a forma de compor server/client." }
+      ]
+    }
+  ],
+  "nextjs/data-fetching": [
+    {
+      "enunciado": "Qual é o comportamento padrão de cache do fetch no Next.js 16?",
+      "alternativas": [
+        { "texto": "Não é cacheado por padrão (equivalente a no-store).", "correta": true, "explicacao": "Desde o Next 15/16 o fetch não é mais cacheado automaticamente; use next: { revalidate } para habilitar cache." },
+        { "texto": "É cacheado indefinidamente por padrão.", "explicacao": "Esse era o comportamento antigo; hoje o padrão é no-store." },
+        { "texto": "Cache de 60 segundos sempre.", "explicacao": "Sem revalidate explícito, não há cache automático." },
+        { "texto": "Cache apenas no cliente.", "explicacao": "O controle de cache do fetch é do lado do servidor/roteamento." }
+      ]
+    },
+    {
+      "enunciado": "Como habilitar cache que revalida a cada 60 segundos?",
+      "alternativas": [
+        { "texto": "fetch(url, { next: { revalidate: 60 } })", "correta": true, "explicacao": "A opção next: { revalidate } define o intervalo de revalidação (ISR sob demanda); tags permitem invalidação posterior." },
+        { "texto": "fetch(url, { cache: 'force-cache' })", "explicacao": "force-cache existe, mas a forma idiomática do Next é next: { revalidate }." },
+        { "texto": "fetch(url, { next: { revalidate: 'uma hora' } })", "explicacao": "revalidate recebe número (segundos), não string." },
+        { "texto": "Não é possível cachear no Next.", "explicacao": "O Next suporta cache via revalidate." }
+      ]
+    },
+    {
+      "enunciado": "Qual o papel de generateMetadata em uma page?",
+      "alternativas": [
+        { "texto": "Definir título e descrição dinâmicos por rota para SEO.", "correta": true, "explicacao": "generateMetadata permite metadados por página, essenciais para indexação e compartilhamento social." },
+        { "texto": "Criar o banco de dados da página.", "explicacao": "Metadados não criam banco; servem para SEO." },
+        { "texto": "Substituir o layout.tsx.", "explicacao": "São responsabilidades diferentes: metadata vs estrutura/casca." },
+        { "texto": "Bloquear o carregamento da página.", "explicacao": "Ela melhora SEO, não bloqueia o carregamento." }
+      ]
+    }
+  ],
+  "nextjs/proxy-e-rotas-api": [
+    {
+      "enunciado": "No Next.js 16, o que substitui o middleware.ts para proteção de rotas?",
+      "alternativas": [
+        { "texto": "proxy.ts", "correta": true, "explicacao": "O Next 16 introduziu proxy.ts para proteção otimista de rotas e rewrites/redirects, substituindo middleware.ts." },
+        { "texto": "route.ts", "explicacao": "route.ts cria endpoints de API, não protege rotas de navegação." },
+        { "texto": "layout.tsx", "explicacao": "layout.tsx é casca de UI, não camada de proxy." },
+        { "texto": "middleware.ts ainda é usado.", "explicacao": "No Next 16 a abordagem recomendada passou a ser proxy.ts." }
+      ]
+    },
+    {
+      "enunciado": "Por que o proxy.ts faz apenas proteção 'otimista'?",
+      "alternativas": [
+        { "texto": "Ele faz checagens leves (ex.: presença de cookie); a validação real ocorre no Server Component/Route Handler.", "correta": true, "explicacao": "O proxy roda cedo e deve ser leve; validação completa de sessão fica no servidor (page/route)." },
+        { "texto": "Ele não pode ler cookies.", "explicacao": "Ele pode sim ler cookies; só não deve fazer I/O pesado de validação." },
+        { "texto": "Ele substitui totalmente a autenticação.", "explicacao": "Ele é otimista, não substitui a verificação definitiva." },
+        { "texto": "Ele trava a aplicação até o banco responder.", "explicacao": "Pelo contrário: ele evita I/O pesado para não bloquear." }
+      ]
+    },
+    {
+      "enunciado": "Como ler o corpo JSON em um Route Handler POST?",
+      "alternativas": [
+        { "texto": "const body = await request.json();", "correta": true, "explicacao": "Em Route Handlers, request é uma NextRequest; await request.json() entrega o objeto enviado." },
+        { "texto": "const body = request.body;", "explicacao": "request.body é um stream; é preciso await request.json() para parsear." },
+        { "texto": "const body = JSON.parse(request);", "explicacao": "request não é string; use request.json()." },
+        { "texto": "Não é possível ler JSON.", "explicacao": "Route Handlers leem JSON normalmente via request.json()." }
+      ]
+    }
+  ]
+}

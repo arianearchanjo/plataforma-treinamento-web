@@ -1,0 +1,342 @@
+{
+  "prisma/introducao-ao-prisma": [
+    {
+      "enunciado": "Quais são as três peças principais da arquitetura do Prisma?",
+      "alternativas": [
+        {
+          "texto": "Prisma Schema, Prisma Client gerado e Prisma CLI",
+          "correta": true,
+          "explicacao": "O schema é a fonte da verdade, o Client é o código TypeScript gerado a partir dele e a CLI executa geração, migrations e Studio."
+        },
+        {
+          "texto": "Prisma Server, Prisma Proxy e Prisma Cache",
+          "explicacao": "Esses nomes não correspondem às peças da arquitetura; Accelerate/Pulse são produtos opcionais, não o núcleo."
+        },
+        {
+          "texto": "schema.prisma, migrations e docker-compose.yml",
+          "explicacao": "Migrations são um artefato produzido pela CLI e o docker-compose é infraestrutura opcional, não parte do Prisma."
+        },
+        {
+          "texto": "Prisma Studio, PostgreSQL e o driver pg",
+          "explicacao": "Studio é apenas uma ferramenta, e banco e driver são dependências externas, não componentes do Prisma."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que o comando `npx prisma generate` faz?",
+      "alternativas": [
+        {
+          "texto": "Lê o schema.prisma e (re)escreve o Prisma Client tipado no diretório de saída configurado",
+          "correta": true,
+          "explicacao": "Ele apenas gera o código do cliente a partir do schema; por isso é necessário após clonar o projeto ou alterar models."
+        },
+        {
+          "texto": "Cria as tabelas no banco de dados a partir do schema",
+          "explicacao": "Alterar o banco é papel de `prisma migrate dev` ou `prisma db push`; `generate` não toca no banco."
+        },
+        {
+          "texto": "Gera um arquivo de migration SQL versionado",
+          "explicacao": "Migrations são criadas por `prisma migrate dev`, não por `generate`."
+        },
+        {
+          "texto": "Cria o arquivo .env com a DATABASE_URL",
+          "explicacao": "Isso acontece em `prisma init`, e apenas na primeira configuração do projeto."
+        }
+      ]
+    },
+    {
+      "enunciado": "No Prisma 7 com PostgreSQL, por que o cliente é criado como `new PrismaClient({ adapter })`?",
+      "alternativas": [
+        {
+          "texto": "Porque a conexão é delegada a um driver JavaScript (pg) através de um driver adapter, agora obrigatório",
+          "correta": true,
+          "explicacao": "O Prisma continua gerando o SQL, mas a execução passa pelo adapter e pelo driver pg, o que reduz o bundle e permite runtimes restritos."
+        },
+        {
+          "texto": "Porque o adapter substitui o schema.prisma na configuração do banco",
+          "explicacao": "O schema continua existindo com seu bloco datasource, usado pela CLI; o adapter atua no runtime da aplicação."
+        },
+        {
+          "texto": "Porque sem adapter o Prisma só consegue conectar em MySQL",
+          "explicacao": "Não há relação com MySQL; o adapter existe para desacoplar o Prisma do transporte de conexão."
+        },
+        {
+          "texto": "Porque o adapter é responsável por traduzir suas chamadas em SQL",
+          "explicacao": "A tradução para SQL continua sendo do Prisma; o adapter apenas executa a consulta usando o driver."
+        }
+      ]
+    }
+  ],
+  "prisma/modelando-dados": [
+    {
+      "enunciado": "Em uma relação 1:N entre `Modulo` e `Licao`, onde fica a chave estrangeira?",
+      "alternativas": [
+        {
+          "texto": "No lado 'muitos', em `Licao.moduloId`, declarada com @relation(fields: [moduloId], references: [id])",
+          "correta": true,
+          "explicacao": "A FK vive sempre no lado que pertence ao outro; o campo `licoes` em Modulo é apenas virtual, sem coluna no banco."
+        },
+        {
+          "texto": "No lado 'um', em uma coluna `licoesIds` no model Modulo",
+          "explicacao": "O Prisma não cria arrays de FK em relações 1:N; o campo de lista é apenas virtual."
+        },
+        {
+          "texto": "Em uma tabela de junção criada automaticamente pelo Prisma",
+          "explicacao": "Tabela de junção é característica de relações N:N implícitas, não de 1:N."
+        },
+        {
+          "texto": "Nos dois models, para manter a consistência dos joins",
+          "explicacao": "Duplicar a chave criaria dois pontos de verdade e risco de inconsistência; apenas o lado 'muitos' a guarda."
+        }
+      ]
+    },
+    {
+      "enunciado": "O que transforma uma relação em 1:1 no schema do Prisma?",
+      "alternativas": [
+        {
+          "texto": "Adicionar @unique na chave estrangeira do lado que a possui",
+          "correta": true,
+          "explicacao": "Com @unique em `usuarioId`, cada usuário só pode ter um perfil, o que caracteriza a relação 1:1."
+        },
+        {
+          "texto": "Usar @@id([usuarioId]) no model relacionado",
+          "explicacao": "Isso define uma chave primária, mas o que expressa a cardinalidade 1:1 no Prisma é a unicidade da FK combinada a campos singulares."
+        },
+        {
+          "texto": "Declarar os dois campos de relação como listas",
+          "explicacao": "Campos de lista nos dois lados descrevem justamente uma relação N:N."
+        },
+        {
+          "texto": "Definir onDelete: Cascade na relação",
+          "explicacao": "onDelete controla o que acontece ao apagar o registro pai, não a cardinalidade da relação."
+        }
+      ]
+    },
+    {
+      "enunciado": "Quando é preferível modelar uma relação N:N explícita, com um model intermediário?",
+      "alternativas": [
+        {
+          "texto": "Quando a própria relação precisa guardar dados, como progresso ou data de matrícula",
+          "correta": true,
+          "explicacao": "A N:N implícita gera uma tabela de junção gerenciada pelo Prisma, sem espaço para colunas extras; o model intermediário resolve isso."
+        },
+        {
+          "texto": "Sempre, porque a N:N implícita não funciona em PostgreSQL",
+          "explicacao": "A N:N implícita funciona perfeitamente em PostgreSQL; a escolha é sobre necessidade de atributos na relação."
+        },
+        {
+          "texto": "Quando você quer que o Prisma crie a tabela de junção automaticamente",
+          "explicacao": "É justamente o contrário: a criação automática é característica da relação implícita."
+        },
+        {
+          "texto": "Apenas quando um dos lados usa @default(autoincrement())",
+          "explicacao": "A estratégia de geração de id não tem influência sobre o tipo de N:N escolhido."
+        }
+      ]
+    }
+  ],
+  "prisma/migrations": [
+    {
+      "enunciado": "Qual é a diferença essencial entre `prisma migrate dev` e `prisma migrate deploy`?",
+      "alternativas": [
+        {
+          "texto": "`migrate dev` cria novas migrations, aplica e regenera o cliente em desenvolvimento; `migrate deploy` apenas aplica migrations pendentes, sem criar nada nem resetar o banco",
+          "correta": true,
+          "explicacao": "Por isso `deploy` é o comando seguro e não interativo para CI e produção, enquanto `dev` é para a máquina local."
+        },
+        {
+          "texto": "`migrate deploy` cria as migrations e `migrate dev` só as aplica",
+          "explicacao": "É o oposto: quem gera arquivos de migration é o `migrate dev`."
+        },
+        {
+          "texto": "São idênticos; `deploy` é apenas um alias mais curto",
+          "explicacao": "Eles têm comportamentos bem distintos, especialmente quanto a gerar arquivos e poder resetar o banco."
+        },
+        {
+          "texto": "`migrate dev` funciona em produção desde que a variável NODE_ENV esteja como production",
+          "explicacao": "`migrate dev` pode resetar o banco e é interativo; nunca deve ser usado em produção."
+        }
+      ]
+    },
+    {
+      "enunciado": "Em que situação `prisma db push` é uma escolha adequada?",
+      "alternativas": [
+        {
+          "texto": "Em protótipos e bancos locais descartáveis, quando não é necessário histórico versionado de mudanças",
+          "correta": true,
+          "explicacao": "`db push` sincroniza o schema direto com o banco sem gerar migrations, o que é rápido mas impede reprodução e revisão do histórico."
+        },
+        {
+          "texto": "Em produção, porque é mais rápido do que aplicar migrations",
+          "explicacao": "Sem histórico não há como reproduzir nem auditar o estado do banco; em produção use `migrate deploy`."
+        },
+        {
+          "texto": "Sempre que você quiser gerar um arquivo migration.sql para revisão",
+          "explicacao": "`db push` não gera arquivo nenhum; para isso use `migrate dev --create-only`."
+        },
+        {
+          "texto": "Em bancos compartilhados pelo time, para evitar conflitos de Git",
+          "explicacao": "Em banco compartilhado isso causa drift, deixando o banco fora de sincronia com o histórico de migrations."
+        }
+      ]
+    },
+    {
+      "enunciado": "Por que scripts de seed devem usar `upsert` em vez de `create`?",
+      "alternativas": [
+        {
+          "texto": "Para que o seed seja idempotente e possa rodar várias vezes sem violar restrições de unicidade",
+          "correta": true,
+          "explicacao": "O upsert atualiza quando o registro já existe e cria quando não existe, o que permite reexecutar o seed com segurança."
+        },
+        {
+          "texto": "Porque `create` não funciona fora de Server Components",
+          "explicacao": "`create` funciona em qualquer código de servidor, incluindo scripts; a questão é a repetibilidade do seed."
+        },
+        {
+          "texto": "Porque `upsert` dispensa a existência das tabelas no banco",
+          "explicacao": "Qualquer operação exige que as tabelas já existam, ou seja, que as migrations tenham sido aplicadas."
+        },
+        {
+          "texto": "Porque `upsert` roda automaticamente dentro de uma migration",
+          "explicacao": "O seed é um script separado, executado após as migrations, e não parte de nenhum migration.sql."
+        }
+      ]
+    }
+  ],
+  "prisma/consultas-crud": [
+    {
+      "enunciado": "Qual é a diferença entre `findUnique` e `findFirst`?",
+      "alternativas": [
+        {
+          "texto": "`findUnique` aceita apenas campos únicos no where; `findFirst` aceita qualquer filtro e respeita orderBy",
+          "correta": true,
+          "explicacao": "findUnique é otimizado para busca por chave (@id, @unique, @@unique); findFirst devolve o primeiro registro que casa com um filtro qualquer."
+        },
+        {
+          "texto": "`findUnique` devolve um array com um item e `findFirst` devolve um objeto",
+          "explicacao": "Ambos devolvem um único registro ou null; nenhum devolve array."
+        },
+        {
+          "texto": "`findFirst` lança erro quando nada é encontrado e `findUnique` devolve null",
+          "explicacao": "Ambos devolvem null; as variantes que lançam erro são findFirstOrThrow e findUniqueOrThrow."
+        },
+        {
+          "texto": "`findUnique` só funciona dentro de uma transação",
+          "explicacao": "Não há qualquer exigência de transação para leituras simples."
+        }
+      ]
+    },
+    {
+      "enunciado": "Qual afirmação sobre `select` e `include` está correta?",
+      "alternativas": [
+        {
+          "texto": "`include` traz todos os campos escalares mais as relações pedidas, enquanto `select` retorna exclusivamente os campos listados",
+          "correta": true,
+          "explicacao": "Por isso select é preferível em listagens, reduzindo dados trafegados; e os dois não podem ser combinados no mesmo nível."
+        },
+        {
+          "texto": "Os dois são sinônimos e podem ser usados juntos no mesmo nível",
+          "explicacao": "Têm semânticas diferentes e o Prisma rejeita o uso simultâneo no mesmo nível da consulta."
+        },
+        {
+          "texto": "`select` é o único capaz de trazer relações",
+          "explicacao": "Ambos podem trazer relações; select apenas exige que você liste explicitamente o que quer."
+        },
+        {
+          "texto": "Relações vêm sempre no resultado, e include serve apenas para filtrá-las",
+          "explicacao": "Relações não são carregadas por padrão; sem include ou select elas nem aparecem no tipo."
+        }
+      ]
+    },
+    {
+      "enunciado": "Dentro de uma transação interativa `prisma.$transaction(async (tx) => { ... })`, por que é obrigatório usar `tx`?",
+      "alternativas": [
+        {
+          "texto": "Porque só as operações feitas com `tx` participam da transação; usar o cliente global executa fora dela e não sofre rollback",
+          "correta": true,
+          "explicacao": "O tx representa a conexão da transação; chamadas via prisma global usam outra conexão e permanecem gravadas mesmo se a transação falhar."
+        },
+        {
+          "texto": "Porque `tx` é apenas um alias de `prisma`, mantido por convenção de estilo",
+          "explicacao": "Não é um alias: é um cliente vinculado à transação em andamento."
+        },
+        {
+          "texto": "Porque `tx` é a única forma de usar `include` em consultas aninhadas",
+          "explicacao": "include funciona igualmente fora de transações; nada a ver com o escopo transacional."
+        },
+        {
+          "texto": "Porque `prisma` não pode ser usado em código assíncrono",
+          "explicacao": "Todo o cliente Prisma é assíncrono por natureza; a restrição real é o escopo da transação."
+        }
+      ]
+    }
+  ],
+  "prisma/driver-adapters-postgres": [
+    {
+      "enunciado": "O que faz um driver adapter como o `@prisma/adapter-pg`?",
+      "alternativas": [
+        {
+          "texto": "Permite que o Prisma execute as consultas através de um driver JavaScript (pg), em vez de conectar por conta própria com um motor nativo",
+          "correta": true,
+          "explicacao": "O Prisma continua planejando e gerando o SQL; o adapter delega a execução ao driver, o que reduz o bundle e habilita runtimes restritos."
+        },
+        {
+          "texto": "Substitui o Prisma Client, gerando o SQL diretamente do schema",
+          "explicacao": "O Client continua sendo a interface que você usa e o responsável por gerar o SQL."
+        },
+        {
+          "texto": "Converte o schema PostgreSQL para MySQL automaticamente",
+          "explicacao": "Adapters não traduzem dialetos; cada adapter fala com um banco específico."
+        },
+        {
+          "texto": "Cria as migrations no lugar da CLI do Prisma",
+          "explicacao": "Migrations continuam sendo trabalho da CLI, que usa a url do bloco datasource."
+        }
+      ]
+    },
+    {
+      "enunciado": "Quais pacotes são necessários para usar o Prisma 7 com PostgreSQL via driver adapter?",
+      "alternativas": [
+        {
+          "texto": "@prisma/client, @prisma/adapter-pg e pg (mais prisma como dependência de desenvolvimento)",
+          "correta": true,
+          "explicacao": "O adapter é a ponte e o pg é o driver real; ambos são dependências de runtime, enquanto a CLI prisma é de desenvolvimento."
+        },
+        {
+          "texto": "Apenas @prisma/client, pois o adapter vem embutido",
+          "explicacao": "O adapter é um pacote separado e precisa ser instalado explicitamente."
+        },
+        {
+          "texto": "@prisma/client e @prisma/adapter-planetscale",
+          "explicacao": "Esse adapter é para PlanetScale; para PostgreSQL com o driver pg use @prisma/adapter-pg."
+        },
+        {
+          "texto": "prisma e pg apenas, sem @prisma/client",
+          "explicacao": "Sem @prisma/client não existe runtime do cliente para executar as consultas."
+        }
+      ]
+    },
+    {
+      "enunciado": "Por que `src/lib/prisma.ts` guarda a instância do cliente em `globalThis` fora de produção?",
+      "alternativas": [
+        {
+          "texto": "Porque o hot reload do Next.js reavalia o módulo e, sem o cache, novos pools de conexão seriam criados até o Postgres recusar conexões",
+          "correta": true,
+          "explicacao": "O cache global reaproveita o mesmo pool entre recargas; em produção o módulo é avaliado uma única vez, então o cache não é necessário."
+        },
+        {
+          "texto": "Porque o Prisma Client não pode ser importado em mais de um arquivo",
+          "explicacao": "Pode ser importado livremente; o problema é instanciar vários clientes, não importar o singleton."
+        },
+        {
+          "texto": "Porque em produção o adapter dispensa uma connection string",
+          "explicacao": "A DATABASE_URL é necessária em todos os ambientes."
+        },
+        {
+          "texto": "Porque globalThis é a única forma de ler variáveis de ambiente no servidor",
+          "explicacao": "Variáveis de ambiente são lidas em process.env; globalThis aqui serve apenas como cache do singleton."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "biome/introducao-biome": [
+    {
+      "enunciado": "O que o Biome substitui em um projeto front-end típico?",
+      "alternativas": [
+        { "texto": "Reúne em um único binário o que o ESLint (lint) e o Prettier (format) faziam separadamente.", "correta": true, "explicacao": "O Biome é uma ferramenta all-in-one escrita em Rust que cobre lint e formatação, eliminando duas dependências." },
+        { "texto": "Substitui o compilador do TypeScript.", "explicacao": "O Biome não compila TypeScript para JavaScript; apenas analisa e formata." },
+        { "texto": "Substitui o gerenciador de pacotes npm.", "explicacao": "Biome não gerencia dependências; apenas lint e format." },
+        { "texto": "Substitui o React por completo.", "explicacao": "Biome é uma ferramenta de qualidade de código, não um framework de UI." }
+      ]
+    },
+    {
+      "enunciado": "Qual comando apenas aponta problemas de lint e formatação sem alterar arquivos?",
+      "alternativas": [
+        { "texto": "biome check .", "correta": true, "explicacao": "check analisa e reporta; para corrigir automaticamente é preciso usar --write." },
+        { "texto": "biome check . --write", "explicacao": "Com --write ele aplica as correções, então altera os arquivos." },
+        { "texto": "biome format . --write", "explicacao": "Isso formata e escreve; além disso cobre só formatação, não lint." },
+        { "texto": "biome init", "explicacao": "init apenas cria o biome.json; não analisa nada." }
+      ]
+    },
+    {
+      "enunciado": "Por que não se deve rodar Prettier e Biome juntos no mesmo projeto?",
+      "alternativas": [
+        { "texto": "Porque eles disputam a formatação e produzem regras opostas, gerando conflito e mudanças constantes.", "correta": true, "explicacao": "Dois formatadores brigam pelo mesmo arquivo; ao adotar o Biome, o Prettier deve ser removido." },
+        { "texto": "Porque o Biome trava se o Prettier estiver instalado.", "explicacao": "Não trava; o problema é a formatação conflitante, não uma incompatibilidade técnica." },
+        { "texto": "Porque o Prettier é mais lento que o Biome e impede o build.", "explicacao": "A questão é o conflito de estilo, não impedir o build." },
+        { "texto": "Porque o Biome só funciona com ESLint ativo.", "explicacao": "Pelo contrário: o Biome substitui o ESLint, não depende dele." }
+      ]
+    }
+  ],
+  "biome/lint-format-ci": [
+    {
+      "enunciado": "Qual comando do Biome é recomendado para rodar na CI (pipeline)?",
+      "alternativas": [
+        { "texto": "biome ci .", "correta": true, "explicacao": "biome ci é a versão não interativa do check e falha se houver qualquer diferença de lint/formatação, bloqueando o PR." },
+        { "texto": "biome check . --write", "explicacao": "Na CI não se deve escrever nos arquivos; o check --write alteraria o código do PR." },
+        { "texto": "biome format .", "explicacao": "format cobre só formatação e não é a forma de validação adequada para CI." },
+        { "texto": "biome init", "explicacao": "init cria config; não valida nada." }
+      ]
+    },
+    {
+      "enunciado": "Em biome.json, o que significa definir uma regra com severidade 'error'?",
+      "alternativas": [
+        { "texto": "A regra violada faz o biome check/ci falhar, bloqueando o commit ou o PR.", "correta": true, "explicacao": "error quebra a análise; warn apenas avisa sem falhar; off desativa." },
+        { "texto": "A regra é ignorada silenciosamente.", "explicacao": "Isso seria 'off', não 'error'." },
+        { "texto": "A regra só avisa, nunca bloqueia.", "explicacao": "Avisar é o comportamento de 'warn'." },
+        { "texto": "A regra passa a formatar o arquivo automaticamente.", "explicacao": "Severidade não formata; apenas classifica a violação." }
+      ]
+    },
+    {
+      "enunciado": "Como o GitHub Actions bloqueia um PR que viola o padrão de lint/format?",
+      "alternativas": [
+        { "texto": "Rodando 'npx biome ci .' em um job obrigatório; se o comando falhar, o job falha e o branch protection impede o merge.", "correta": true, "explicacao": "Tornando o job obrigatório no branch protection, o PR só mergeia com o check verde." },
+        { "texto": "Apenas instalando a extensão do Biome no VS Code dos revisores.", "explicacao": "Extensão é local; não bloqueia PR no servidor." },
+        { "texto": "Escrevendo um comentário no PR manualmente.", "explicacao": "Comentário não bloqueia merge automaticamente." },
+        { "texto": "Removendo o arquivo biome.json do repositório.", "explicacao": "Sem config, o Biome não tem regras para aplicar." }
+      ]
+    }
+  ]
+}

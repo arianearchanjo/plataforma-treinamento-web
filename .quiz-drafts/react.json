@@ -1,0 +1,147 @@
+{
+  "react/introducao-ao-react": [
+    {
+      "enunciado": "O que significa dizer que o React segue um modelo declarativo?",
+      "alternativas": [
+        { "texto": "Você descreve como a UI deve ser para cada estado e o React atualiza o que mudou.", "correta": true, "explicacao": "No modelo declarativo você declara o resultado desejado (a UI para aquele estado) e o React reconcilia o DOM, sem você escrever passos imperativos." },
+        { "texto": "Você manipula o DOM manualmente a cada mudança de dado.", "explicacao": "Isso é programação imperativa, típica de jQuery, e não o modelo declarativo do React." },
+        { "texto": "O React só funciona com formulários HTML estáticos.", "explicacao": "O React é genérico para qualquer UI e não se restringe a formulários estáticos." },
+        { "texto": "O código é convertido para CSS automaticamente.", "explicacao": "JSX vira chamadas de createElement, não CSS; o modelo declarativo é sobre descrever a UI." }
+      ]
+    },
+    {
+      "enunciado": "Qual é a função do Virtual DOM?",
+      "alternativas": [
+        { "texto": "Manter uma árvore leve em memória para comparar e aplicar apenas as diferenças no DOM real.", "correta": true, "explicacao": "O Virtual DOM permite o diffing: o React recria a árvore virtual, compara com a anterior e aplica só as mudanças reais, ganhando performance." },
+        { "texto": "Substituir completamente o navegador para renderizar a página.", "explicacao": "O Virtual DOM não substitui o navegador; ele apenas otimiza as atualizações do DOM real." },
+        { "texto": "Armazenar o banco de dados da aplicação.", "explicacao": "Dados persistentes ficam no servidor/banco, não no Virtual DOM." },
+        { "texto": "Compilar JSX para JavaScript.", "explicacao": "A compilação de JSX é feita pelo bundler (ex.: Babel/SWC), não pelo Virtual DOM." }
+      ]
+    },
+    {
+      "enunciado": "Como se cria o componente mínimo pedido pela documentação do React?",
+      "alternativas": [
+        { "texto": "Uma função que retorna JSX, por exemplo function App() { return <h1 /> }.", "correta": true, "explicacao": "Componentes em React 19 são funções que retornam JSX; o exemplo canônico é function App() { return <h1 /> }." },
+        { "texto": "Uma classe obrigatória com o método render() sempre.", "explicacao": "Classes eram comuns no passado, mas hoje a forma canônica é função; render() não é obrigatório." },
+        { "texto": "Um arquivo HTML solto sem JavaScript.", "explicacao": "React exige um componente (função) que retorne JSX, não um HTML avulso." },
+        { "texto": "Um componente nomeado obrigatoriamente em minúsculas.", "explicacao": "Componentes devem começar com maiúscula para o JSX diferenciá-los de tags nativas." }
+      ]
+    }
+  ],
+  "react/componentes-e-props": [
+    {
+      "enunciado": "Qual é a diferença fundamental entre props e estado?",
+      "alternativas": [
+        { "texto": "Props vêm do pai e são somente leitura; estado é interno e pode mudar.", "correta": true, "explicacao": "Props são dados passados pelo pai (imutáveis no filho); estado é controlado pelo próprio componente e muda ao longo do tempo." },
+        { "texto": "Props e estado são exatamente a mesma coisa.", "explicacao": "São conceitos distintos: props externas/imutáveis vs estado interno/mutável." },
+        { "texto": "Estado vem do pai e props são internas.", "explicacao": "É o contrário: props vêm de fora, estado é interno." },
+        { "texto": "Props podem ser mutadas livremente dentro do filho.", "explicacao": "Props são somente leitura; mutá-las quebra o modelo do React." }
+      ]
+    },
+    {
+      "enunciado": "O que a prop especial `children` representa?",
+      "alternativas": [
+        { "texto": "Tudo que foi colocado entre as tags do componente ao usá-lo.", "correta": true, "explicacao": "children recebe o conteúdo aninhado (filhos) passado entre as tags, base da composição e dos layouts." },
+        { "texto": "O primeiro elemento do array de props.", "explicacao": "children não é o primeiro prop, é o conteúdo aninhado entre as tags do componente." },
+        { "texto": "Uma função obrigatória de renderização.", "explicacao": "children é uma prop de conteúdo, não uma função." },
+        { "texto": "O estado inicial do componente.", "explicacao": "Estado inicial é definido via useState, não via children." }
+      ]
+    },
+    {
+      "enunciado": "Por que componentes React devem ser puros quanto à renderização?",
+      "alternativas": [
+        { "texto": "Para que, dadas as mesmas props, retornem a mesma UI sem efeitos colaterais.", "correta": true, "explicacao": "Componentes puros não mutam variáveis externas nem fazem I/O durante a render, tornando a UI previsível e otimizável." },
+        { "texto": "Para que executem requisições HTTP durante a renderização.", "explicacao": "Requisições durante a render quebram a pureza; devem ir em useEffect/Server Component." },
+        { "texto": "Para que mutem props diretamente.", "explicacao": "Mutar props é justamente o que a pureza proíbe." },
+        { "texto": "Para que o React não consiga otimizar a renderização.", "explicacao": "Pureza permite otimizações; o oposto prejudica performance." }
+      ]
+    }
+  ],
+  "react/estado-e-hooks": [
+    {
+      "enunciado": "Por que devemos tratar arrays/objetos de estado como imutáveis?",
+      "alternativas": [
+        { "texto": "Porque o React compara referências; mutar direto não dispara re-render.", "correta": true, "explicacao": "O React detecta mudanças por referência. Criar um novo array/objeto garante que o estado mudou e a UI atualize." },
+        { "texto": "Porque arrays em JS não podem ser alterados.", "explicacao": "JS permite mutar arrays; o ponto é que o React não percebe a mudança sem nova referência." },
+        { "texto": "Porque o useState exige sempre strings.", "explicacao": "useState aceita qualquer tipo, inclusive arrays e objetos." },
+        { "texto": "Porque imutabilidade deixa o código mais lento.", "explicacao": "Na prática, a imutabilidade é barata e necessária para o modelo reativo." }
+      ]
+    },
+    {
+      "enunciado": "Qual é o papel do array de dependências do useEffect?",
+      "alternativas": [
+        { "texto": "Decidir quando o efeito reexecuta; [] roda só na montagem.", "correta": true, "explicacao": "O array controla a reexecução: vazio roda uma vez, com [prop] roda quando prop muda, e sem array roda a cada render." },
+        { "texto": "Definir o valor inicial do estado.", "explicacao": "Valor inicial é o argumento do useState, não do useEffect." },
+        { "texto": "Bloquear a renderização do componente.", "explicacao": "useEffect não bloqueia render; ele roda após a renderização." },
+        { "texto": "Substituir o uso de useState.", "explicacao": "useEffect e useState têm funções diferentes; um não substitui o outro." }
+      ]
+    },
+    {
+      "enunciado": "Por que hooks devem ser chamados no topo do componente?",
+      "alternativas": [
+        { "texto": "Porque o React associa estado à ordem de chamada dos hooks.", "correta": true, "explicacao": "Hooks dependem de ordem estável entre renders; chamá-los condicionalmente ou em loops quebra essa associação." },
+        { "texto": "Porque assim o código fica mais curto.", "explicacao": "Tamanho não é o motivo; a ordem estável é a regra técnica." },
+        { "texto": "Porque o JavaScript exige isso em qualquer função.", "explicacao": "É uma regra do React, não uma restrição da linguagem JS." },
+        { "texto": "Porque só funciona dentro de classes.", "explicacao": "Hooks são para componentes de função, não classes." }
+      ]
+    }
+  ],
+  "react/listas-formularios-eventos": [
+    {
+      "enunciado": "Por que cada item de uma lista precisa de uma prop `key`?",
+      "alternativas": [
+        { "texto": "Para o React identificar quais itens mudaram, foram adicionados ou removidos.", "correta": true, "explicacao": "A key é o identificador estável usado na reconciliação; sem ela o React não sabe como mapear itens entre renders." },
+        { "texto": "Para aplicar estilo CSS automaticamente.", "explicacao": "key não afeta estilo; serve à identificação na árvore virtual." },
+        { "texto": "Porque o JavaScript exige chaves em arrays.", "explicacao": "JS não exige, mas o React reclama e pode reusar DOM incorretamente sem key." },
+        { "texto": "Para que o map retorne um número.", "explicacao": "map retorna elementos; key é metadado de identificação, não o valor retornado." }
+      ]
+    },
+    {
+      "enunciado": "O que caracteriza um formulário controlado em React?",
+      "alternativas": [
+        { "texto": "O valor vem do estado e onChange atualiza esse estado.", "correta": true, "explicacao": "Em formulários controlados a fonte da verdade é o estado: value ligado ao estado e onChange o atualiza." },
+        { "texto": "O valor é gerenciado pelo navegador e não pelo React.", "explicacao": "Isso descreve um formulário não controlado (uncontrolled)." },
+        { "texto": "Não é possível usar onChange.", "explicacao": "Justamente o onChange é essencial para ligar o input ao estado." },
+        { "texto": "O input não precisa de atributo value.", "explicacao": "O value ligado ao estado é o que define o controle." }
+      ]
+    },
+    {
+      "enunciado": "Por que chamamos event.preventDefault() no onSubmit de um formulário controlado?",
+      "alternativas": [
+        { "texto": "Para impedir o recarregamento da página e manter o estado do React.", "correta": true, "explicacao": "Sem preventDefault o navegador recarrega a página, perdendo o estado e o fluxo controlado." },
+        { "texto": "Para limpar o banco de dados.", "explicacao": "preventDefault não toca em banco; só evita o comportamento padrão do submit." },
+        { "texto": "Para desativar o botão de enviar.", "explicacao": "O botão não é desativado por preventDefault." },
+        { "texto": "Para permitir múltiplos submits simultâneos.", "explicacao": "Ele evita o reload, não habilita múltiplos submits." }
+      ]
+    }
+  ],
+  "react/novidades-react-19": [
+    {
+      "enunciado": "O que o hook useActionState retorna?",
+      "alternativas": [
+        { "texto": "Um array [estado, action, pendente] para formulários com Actions.", "correta": true, "explicacao": "useActionState devolve o estado da action, a própria função action e o flag de pendência, gerenciando submit automaticamente." },
+        { "texto": "Apenas o valor atual do input.", "explicacao": "Ele não gerencia só input; gerencia estado de Action, action e pendência." },
+        { "texto": "Um único booleano de carregamento.", "explicacao": "Ele retorna três valores, não só um booleano." },
+        { "texto": "A referência do formulário no DOM.", "explicacao": "Referências são do useRef, não do useActionState." }
+      ]
+    },
+    {
+      "enunciado": "Qual mudança do React 19 elimina a necessidade de forwardRef?",
+      "alternativas": [
+        { "texto": "Agora ref pode ser recebido como uma prop comum em function components.", "correta": true, "explicacao": "No React 19 ref é uma prop normal, então forwardRef tornou-se desnecessário (embora ainda funcione)." },
+        { "texto": "As props agora são sempre arrays.", "explicacao": "Props continuam objetos; a mudança é sobre ref como prop." },
+        { "texto": "O hook useRef foi removido.", "explicacao": "useRef continua existindo; apenas a forma de passar ref mudou." },
+        { "texto": "Componentes não podem mais ter refs.", "explicacao": "Refs continuam suportadas, só a API de recebimento mudou." }
+      ]
+    },
+    {
+      "enunciado": "Como o React 19 lida com <title> e <meta> renderizados dentro de um componente?",
+      "alternativas": [
+        { "texto": "Eleva (hoists) essas tags para o <head> automaticamente.", "correta": true, "explicacao": "Document Metadata nativo: você pode renderizar title/meta/link em qualquer componente e o React os move para o head, ajudando SEO." },
+        { "texto": "Ignora as tags fora do layout.", "explicacao": "Ele não ignora; processa e eleva para o head." },
+        { "texto": "Exige uma biblioteca de terceiros obrigatoriamente.", "explicacao": "Agora é nativo, sem dependência externa." },
+        { "texto": "Só funciona em Client Components.", "explicacao": "Funciona em Server Components, onde é especialmente útil para SEO." }
+      ]
+    }
+  ]
+}
