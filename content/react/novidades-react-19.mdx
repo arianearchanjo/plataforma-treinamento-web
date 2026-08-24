@@ -1,0 +1,218 @@
+# Novidades do React 19
+
+**React 19** consolidou recursos que antes viviam em versões "canary" e trouxe melhorias profundas para formulários, Server Components e metadados. Esta lição cobre o que mudou na prática — e o que isso significa para quem já usa hooks clássicos.
+
+## Actions e `useActionState`
+
+Uma **Action** é uma função que o React pode executar como resposta a uma interação (geralmente um submit) e que lida com estados de pendência e erro automaticamente. `useActionState` substitui o antigo `useFormState` e retorna `[estado, action, pendente]`.
+
+```tsx
+import { useActionState } from "react";
+
+async function enviarAntigo(_estadoAnterior: unknown, formData: FormData) {
+  const nome = formData.get("nome");
+  await new Promise((r) => setTimeout(r, 1000));
+  return { mensagem: `Olá, ${nome}!` };
+}
+
+function Formulario() {
+  const [estado, action, pendente] = useActionState(enviarAntigo, null);
+
+  return (
+    <form action={action}>
+      <input name="nome" />
+      <button type="submit" disabled={pendente}>
+        {pendente ? "Enviando..." : "Enviar"}
+      </button>
+      {estado?.mensagem && <p>{estado.mensagem}</p>}
+    </form>
+  );
+}
+```
+
+A Action recebe `(estadoAnterior, formData)` e o React gerencia o ciclo de pendência para você.
+
+## `useOptimistic`
+
+`useOptimistic` permite mostrar um valor "otimista" imediatamente, antes da resposta do servidor, e reverter automaticamente se a operação falhar.
+
+```tsx
+import { useOptimistic, useRef } from "react";
+
+function Comentarios({ comentarios }: { comentarios: string[] }) {
+  const [otimista, addOtimista] = useOptimistic(
+    comentarios,
+    (lista, novo) => [...lista, novo],
+  );
+  const ref = useRef<HTMLInputElement>(null);
+
+  async function enviar(formData: FormData) {
+    const texto = String(formData.get("texto") ?? "");
+    addOtimista(texto); // aparece na hora
+    await salvarNoServidor(texto); // confirma ou reverte
+  }
+
+  return (
+    <form action={enviar}>
+      <input ref={ref} name="texto" />
+      <ul>{otimista.map((c, i) => <li key={i}>{c}</li>)}</ul>
+    </form>
+  );
+}
+```
+
+## `useFormStatus`
+
+`useFormStatus`, importado de `react-dom`, lê o estado de um formulário a partir de um componente filho (dentro do `<form>`). Ótimo para isolar o botão de submit.
+
+```tsx
+import { useFormStatus } from "react-dom";
+
+function BotaoSubmit() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>{pending ? "Salvando..." : "Salvar"}</button>;
+}
+```
+
+## `ref` como prop (sem `forwardRef`)
+
+No React 19 você pode receber `ref` como uma prop comum em componentes de função. O `forwardRef` tornou-se desnecessário (embora ainda funcione).
+
+```tsx
+// Antes: precisava de forwardRef
+const InputAntigo = forwardRef((props, ref) => <input ref={ref} {...props} />);
+
+// React 19: ref é uma prop normal
+function Input({ ref, ...props }: { ref?: React.Ref<HTMLInputElement> }) {
+  return <input ref={ref} {...props} />;
+}
+
+function App() {
+  const ref = useRef<HTMLInputElement>(null);
+  return <Input ref={ref} />;
+}
+```
+
+Além disso, o callback de `ref` pode retornar uma função de cleanup, simplificando a remoção de listeners.
+
+```tsx
+<div ref={(node) => {
+  if (node) node.addEventListener("click", handler);
+  return () => node.removeEventListener("click", handler);
+}} />
+```
+
+## `use()` para ler recursos
+
+O novo hook `use()` lê o valor de uma Promise ou de um Context diretamente durante a renderização, e integra-se com Suspense. Diferente de outros hooks, `use` pode ser chamado condicionalmente.
+
+```tsx
+import { use } from "react";
+
+function Dados({ promessa }: { promessa: Promise<string> }) {
+  const valor = use(promessa); // suspende até resolver
+  return <p>{valor}</p>;
+}
+```
+
+Isso é especialmente poderoso em Server Components, onde você pode passar uma Promise de fetch e ler com `use` dentro de um componente cliente suspenso.
+
+## Suspense aprimorado
+
+O React 19 melhorou o Suspense para cobrir atualizações de estado e não apenas carregamento inicial. Erros de hidratação agora mostram a causa real e o `Suspense` lida melhor com re-tentativas, reduzindo flashes de conteúdo.
+
+## Document Metadata nativo
+
+Você pode renderizar `<title>`, `<meta>` e `<link>` em qualquer componente e o React os "eleva" para o `<head>`, sem bibliotecas de terceiros.
+
+```tsx
+function PaginaProduto() {
+  return (
+    <>
+      <title>Produto X | DevTrilha</title>
+      <meta name="description" content="Detalhes do produto X" />
+      <h1>Produto X</h1>
+    </>
+  );
+}
+```
+
+Em Server Components (Next.js) isso ajuda muito o SEO sem configuração extra.
+
+## Diretivas `use client` e `use server`
+
+Embora sejam mais do ecossistema de Server Components, elas ganharam forma estável no React 19:
+
+- `"use client"` marca o limite a partir do qual o código roda no navegador (hooks, estado, eventos).
+- `"use server"` marca funções que executam exclusivamente no servidor (Actions seguras que tocam banco ou secrets).
+
+```tsx
+"use server";
+export async function criarUsuario(formData: FormData) {
+  // roda no servidor; seguro para chamar banco
+}
+```
+
+## Outras melhorias
+
+- **Hidratação mais tolerante**: erros de mismatch viram avisos e o React tenta corrigir em vez de quebrar a árvore.
+- **Suporte a custom elements** aprimorado, com props passadas corretamente.
+- `useDeferredValue` e transições mais eficientes para UIs responsivas.
+
+## Exemplo de formulário completo com Actions
+
+Combinando `useActionState`, `useFormStatus` e `useOptimistic`, um formulário de comentários fica enxuto e reativo:
+
+```tsx
+"use client";
+import { useActionState, useOptimistic, useRef } from "react";
+import { useFormStatus } from "react-dom";
+
+async function enviar(_estado: unknown, formData: FormData) {
+  const texto = String(formData.get("texto") ?? "");
+  await salvar(texto);
+  return { ok: true };
+}
+
+function Submit() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>{pending ? "Enviando..." : "Comentar"}</button>;
+}
+
+export function Comentar() {
+  const [estado, action] = useActionState(enviar, null);
+  return (
+    <form action={action}>
+      <input name="texto" />
+      <Submit />
+      {estado?.ok && <p>Comentário enviado!</p>}
+    </form>
+  );
+}
+```
+
+## Compatibilidade e migração
+
+A maioria das APIs antigas continua funcionando. `forwardRef` não é mais necessário, mas não foi removido. `useFormState` foi renomeado para `useActionState` — projetos antigos devem atualizar o import. O `use` para Promises requer Suspense ao redor do componente que o consome.
+
+## Boas práticas
+
+- Use Actions + `useActionState` para formulários que conversam com o servidor.
+- Prefira `useOptimistic` para feedback imediato em listas e comentários.
+- Adote `ref` como prop e deixe de usar `forwardRef` em código novo.
+- Use metadados nativos para SEO em Server Components.
+
+## Armadilhas comuns
+
+- Achar que `useActionState` funciona fora de um `<form action>` ou Server Action — ele precisa de uma Action.
+- Esperar que `useFormStatus` funcione fora de um formulário (ele lê o contexto do form pai).
+- Confundir `use` (ler Promise/Context) com `useEffect` (efeito colateral).
+- Esquecer que diretivas `"use client"`/`"use server"` devem ficar no topo do arquivo.
+
+## Por isso importa
+
+React 19 reduz drasticamente o "babel de estado de formulário" que antes exigíamos manualmente: pendência, erros e otimismo saem de fábrica. Para a DevTrilha, isso significa formulários e Server Components mais simples, metadados de SEO nativos e menos código boilerplate — alinhando-se diretamente ao Next.js 16 que usamos.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a diferença entre `useActionState` e `useOptimistic`, como `ref` virou prop, o papel de `use()` e do `useFormStatus`, e o uso de metadados nativos para SEO.

@@ -1,0 +1,171 @@
+# Seletores e especificidade
+
+**Seletores** são padrões que dizem ao navegador a qual elemento (ou grupo de elementos) uma regra de CSS deve ser aplicada. A **especificidade** é a pontuação que decide qual regra vence quando duas ou mais conflitam sobre a mesma propriedade.
+
+## Seletores básicos
+
+### Seletor de tipo (elemento)
+
+Cssa todos os elementos daquele nome de tag:
+
+```css
+p {
+  line-height: 1.7;
+}
+```
+
+### Seletor de classe
+
+Prefixado por ponto, age em qualquer elemento com o atributo `class`. Reutilizável e preferido na prática:
+
+```css
+.destaque {
+  background: #fff3cd;
+}
+```
+
+### Seletor de ID
+
+Prefixado por `#`, deve ser único na página. Tem especificidade altíssima — use com parcimônia:
+
+```css
+#menu-principal {
+  position: sticky;
+  top: 0;
+}
+```
+
+### Seletor universal
+
+O asterisco casa com tudo. Útil em resets, mas evite regras custosas nele:
+
+```css
+* {
+  box-sizing: border-box;
+}
+```
+
+### Seletor de atributo
+
+Seleciona por presença ou valor de atributo:
+
+```css
+/* todos os inputs obrigatórios */
+input[required] {
+  border-color: #d93025;
+}
+
+/* links externos */
+a[target="_blank"] {
+  color: #1a73e8;
+}
+```
+
+## Combinadores (relação entre elementos)
+
+- **Descendente** (espaço): `article p` casa todo `<p>` dentro de `<article>`, direto ou aninhado.
+- **Filho direto** (`>`): `ul > li` casa apenas `<li>` filhos imediatos da `<ul>`.
+- **Irmão adjacente** (`+`): `h2 + p` casa o `<p>` que vem logo após um `<h2>`.
+- **Irmão geral** (`~`): `h2 ~ p` casa todos os `<p>` irmãos posteriores ao `<h2>`.
+
+```css
+nav > ul {
+  list-style: none;       /* só o menu de primeiro nível */
+}
+
+h2 + p {
+  margin-top: 0;          /* primeira frase após subtítulo */
+}
+```
+
+## Pseudoclasses
+
+Representam um *estado* ou posição do elemento, prefixadas por `:`:
+
+```css
+a:hover {
+  text-decoration: underline;   /* mouse em cima */
+}
+
+input:focus {
+  outline: 2px solid #1a73e8;  /* campo em foco */
+}
+
+li:first-child {
+  font-weight: bold;            /* primeiro item da lista */
+}
+
+tr:nth-child(even) {
+  background: #f5f5f5;          /* listras zebradas */
+}
+```
+
+Entre as mais úteis para layouts modernos estão `:nth-child()`, `:not()` e `:focus-visible`.
+
+## Pseudoelementos
+
+Criam elementos "fictícios" para estilizar partes do conteúdo, prefixados por `::`:
+
+```css
+p::first-line {
+  font-variant: small-caps;
+}
+
+p::selection {
+  background: #ffeb3b;
+}
+
+.botao::before {
+  content: "→ ";     /* conteúdo gerado via CSS */
+}
+```
+
+## A fórmula de especificidade
+
+A especificidade é comparada como um número de quatro colunas: `(inline, ID, classe/atributo/pseudoclasse, tipo/pseudoelemento)`. Quanto maior à esquerda, mais forte.
+
+| Seletor | Exemplo | Pontuação |
+| --- | --- | --- |
+| Tipo / pseudoelemento | `p`, `::before` | 0,0,0,1 |
+| Classe / atributo / pseudoclasse | `.classe`, `[type]`, `:hover` | 0,0,1,0 |
+| ID | `#menu` | 0,1,0,0 |
+| Inline (`style=""`) | — | 1,0,0,0 |
+
+```css
+#menu a.ativo { color: red; }   /* 0,1,1,1 */
+nav a { color: blue; }          /* 0,0,1,1  → perde */
+```
+
+O seletor mais específico vence. Em empate, ganha o **último declarado**.
+
+## A ordem da cascata (resumo)
+
+Quando há conflito, o navegador decide por:
+
+1. Declarações `!important` de origem do usuário/autor.
+2. Especificidade (a fórmula acima).
+3. Ordem de origem no arquivo (último vence).
+
+Por isso, evite IDs e `!important` em CSS de componentes reutilizáveis: eles "trancam" o estilo e dificultam sobrescrever.
+
+## Boas práticas
+
+- Prefira classes a IDs para estilização.
+- Use seletores curtos e legíveis; aninhamentos profundos (`div > ul > li > a`) são frágeis.
+- Aproveite `:nth-child` e `:not()` para evitar classes de estado desnecessárias.
+- Nomeie classes pelo *propósito*, não pela aparência (`btn-enviar`, não `texto-azul`).
+
+## Armadilhas comuns
+
+- Achar que mais seletores = sempre vence (depende da especificidade, não da quantidade).
+- Usar `!important` para "forçar" estilo, criando efeito cascata de hacks.
+- Esquecer que `:first-child` conta entre irmãos, não no documento inteiro.
+- Confundir pseudoclasse (`:`) com pseudoelemento (`::`).
+
+## Por isso importa
+
+Seletores bem escolhidos reduzem a quantidade de HTML e CSS que você escreve, e entender a especificidade é o que separa quem "briga com o CSS" de quem o controla. Toda a estilização prática — de botões a layouts complexos — parte do domínio destes padrões.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença entre seletor de classe e ID, quando usar combinadores, e como calcular qual regra vence em um conflito de especificidade.

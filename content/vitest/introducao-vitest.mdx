@@ -1,0 +1,225 @@
+# Introdução ao Vitest
+
+> Módulo 12 · Vitest
+
+**O Vitest** é um runner de testes criado pela equipe do Vite, desenhado para
+ser extremamente rápido e ter suporte nativo a TypeScript, ESM e JSX sem
+precisar de configurações extras. Por rodar "dentro" do mesmo pipeline de
+transformação do Vite, ele aproveita o cache e o HMR, o que torna a execução de
+testes quase instantânea — ideal para o fluxo de desenvolvimento moderno com
+React e Next.js.
+
+## Por que usar o Vitest?
+
+Antes de escrever o primeiro teste, vale entender o que torna o Vitest
+diferente de alternativas como o Jest:
+
+- **Velocidade**: usa o esbuild/esbuild-jsx para transformar arquivos, sem
+  babel pesado por padrão.
+- **Configuração mínima**: herda o `vite.config` automaticamente; raramente você
+  precisa de um arquivo dedicado só para testes.
+- **API compatível com Jest**: `describe`, `it`, `expect`, `jest.fn` viraram
+  `vi.fn`. Quem já usou Jest se adapta em minutos.
+- **TypeScript e ESM de primeira classe**: sem `ts-jest` nem `babel-jest`.
+- **Watch mode inteligente**: roda apenas os testes afetados pela mudança.
+
+### Vitest vs Jest
+
+| Aspecto | Vitest | Jest |
+| --- | --- | --- |
+| Transformação | esbuild (rápido) | babel (mais lento) |
+| Config com Vite | automática | manual | 
+| ESM nativo | sim | parcial |
+| Watch mode | afetados | todos/padrão |
+
+Na prática, se o seu projeto já usa Vite ou Next.js (que usa Vite sob o capô),
+o Vitest é a escolha mais natural.
+
+## Instalação
+
+Instale como dependência de desenvolvimento:
+
+```bash
+npm install -D vitest
+```
+
+Para projetos que usam React, instale também a Testing Library e o ambiente
+adequado (veremos na próxima lição). Para o básico de funções puras, basta o
+Vitest.
+
+Se precisar de um ambiente específico (node ou browser via jsdom), instale:
+
+```bash
+npm install -D jsdom @vitest/environment-jsdom
+```
+
+## Arquivo de configuração
+
+Embora o Vitest leia o `vite.config.ts`, é comum criar um `vitest.config.ts`
+dedicado para separar responsabilidades:
+
+```ts
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html"],
+    },
+  },
+});
+```
+
+Principais opções de `test`:
+
+- `environment`: `node` para lógica de servidor, `jsdom` para componentes React.
+- `include`/`exclude`: quais arquivos são considerados testes.
+- `globals`: se `true`, dispensa importar `describe`/`it`/`expect`.
+- `coverage`: configuração de cobertura de código.
+
+## A estrutura de um teste
+
+Um teste no Vitest segue três blocos fundamentais:
+
+- `describe`: agrupa testes relacionados (opcional, mas recomendado).
+- `it` (ou `test`): define um caso de teste individual com descrição.
+- `expect`: faz a asserção — afirma que algo é o esperado.
+
+```ts
+import { describe, expect, it } from "vitest";
+
+function somar(a: number, b: number) {
+  return a + b;
+}
+
+describe("somar", () => {
+  it("soma dois números positivos", () => {
+    expect(somar(2, 3)).toBe(5);
+  });
+
+  it("soma números negativos", () => {
+    expect(somar(-1, -4)).toBe(-5);
+  });
+});
+```
+
+## Matchers principais
+
+O `expect` recebe um valor e encadeia um matcher que descreve a verificação:
+
+```ts
+// Igualdade estrita (mesmo valor E mesmo tipo)
+expect(1 + 1).toBe(2);
+
+// Igualdade profunda (objetos/arrays por estrutura)
+expect({ nome: "Ana" }).toEqual({ nome: "Ana" });
+
+// Veracidade
+expect("texto").toBeTruthy();
+expect("").toBeFalsy();
+
+// Condições numéricas
+expect(10).toBeGreaterThan(5);
+expect(3).toBeLessThanOrEqual(3);
+
+// Erros esperados
+expect(() => JSON.parse("invalido")).toThrow();
+expect(() => {
+  throw new Error("falhou");
+}).toThrow("falhou");
+```
+
+Diferença importante: `toBe` usa `Object.is` (compara referência/primitivo),
+enquanto `toEqual` compara o conteúdo de objetos e arrays recursivamente. Use
+`toEqual` para valores derivados e `toBe` para primitivos e referências exatas.
+
+## Rodando os testes
+
+Adicione scripts ao `package.json`:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  }
+}
+```
+
+Comandos comuns:
+
+```bash
+npm test                 # roda uma vez e sai
+npm run test:watch       # modo interativo, re-roda ao salvar
+npm run coverage         # gera relatório de cobertura
+npx vitest run src/lib   # roda apenas uma pasta
+```
+
+## Cobertura básica
+
+A cobertura mostra quanto do seu código os testes exercitaram. O relatório
+`text` aparece no terminal:
+
+```bash
+------------|---------|----------|---------|---------
+File        | % Stmts | % Branch | % Funcs | % Lines
+------------|---------|----------|---------|---------
+corrigir.ts |     100 |      100 |     100 |     100
+------------|---------|----------|---------|---------
+```
+
+Não busque 100% cegamente: foque em cobrir a lógica crítica (regras de negócio,
+correção de quiz, cálculos). Cobertura alta sem bons asserts não garante
+qualidade.
+
+## Exemplo completo
+
+```ts
+import { describe, expect, it } from "vitest";
+
+function ehPar(n: number): boolean {
+  return n % 2 === 0;
+}
+
+describe("ehPar", () => {
+  it("retorna true para números pares", () => {
+    expect(ehPar(4)).toBe(true);
+  });
+
+  it("retorna false para ímpares", () => {
+    expect(ehPar(7)).toBe(false);
+  });
+
+  it("retorna true para zero", () => {
+    expect(ehPar(0)).toBe(true);
+  });
+});
+```
+
+## Boas práticas iniciais
+
+- Dê nomes descritivos: `it("rejeita email sem arroba")` em vez de `it("teste 1")`.
+- Um `it` testa um comportamento; se precisar de vários asserts, eles devem
+  estar relacionados.
+- Use `describe` para agrupar por função ou componente.
+- Mantenha testes determinísticos (sem `Date.now()` solto ou aleatoriedade).
+
+## Por isso importa
+
+Testes automatizados são a rede de segurança que permite evoluir um projeto sem
+quebrar o que já funciona. O Vitest reduz a fricção de escrevê-los: é rápido,
+integra-se ao Vite/Next de graça e usa uma API que você já conhece. Começar com
+funções puras e matchers simples cria o hábito que, nas próximas lições,
+estenderá para componentes React e lógica de servidor.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a
+diferença entre `toBe` e `toEqual`, como estruturar `describe`/`it`/`expect`,
+quando usar `toThrow`, e por que o Vitest é uma escolha natural em projetos
+baseados em Vite/Next.js.

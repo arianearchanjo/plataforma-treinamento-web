@@ -1,0 +1,174 @@
+# Introdução ao Biome
+
+> Módulo 11 · Biome
+
+**O Biome** é uma ferramenta escrita em Rust que reúne, em um único binário, o
+que antes exigia duas ferramentas separadas: o ESLint (lint) e o Prettier
+(format). Ele analisa e formata seu código TypeScript, JavaScript, JSX, TSX,
+JSON e CSS em milissegundos, com uma configuração mínima. No DevTrilha, ele é o
+padrão oficial de qualidade de código.
+
+## Por que Biome?
+
+- **Velocidade**: compilado em Rust, formata centenas de arquivos quase
+  instantaneamente — muito mais rápido que ESLint + Prettier em Node.
+- **Tudo-em-um**: lint e format num só comando, sem plugins conflitantes.
+- **Zero configuração sensata**: já vem com regras e estilo razoáveis.
+- **Determinístico**: a formatação é estável e não "briga" com você.
+- **Substitui ESLint + Prettier**: menos dependências e menos atrito no setup.
+
+### Evitando conflito com Prettier/ESLint
+
+Se o projeto já usa Prettier ou ESLint, **não rode os dois juntos**: eles
+disputam a formatação. Ao adotar o Biome, remova o Prettier (e o ESLint, se for
+só para estilo) para evitar formatações opostas. No DevTrilha usamos só o Biome.
+
+## Instalação e inicialização
+
+```bash
+npm install -D @biomejs/biome
+npx biome init
+```
+
+O `biome init` cria o arquivo `biome.json` na raiz:
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": { "enabled": true },
+  "linter": {
+    "enabled": true,
+    "rules": { "recommended": true }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "files": {
+    "ignore": ["dist", "node_modules", ".next"]
+  }
+}
+```
+
+## Os comandos principais
+
+```bash
+npx biome check .        # analisa lint + format (só aponta problemas)
+npx biome check . --write  # corrige automaticamente o que puder
+npx biome format .       # apenas formata
+npx biome format . --write
+npx biome lint .         # apenas lint
+npx biome lint . --write
+```
+
+O `check` é o comando mais usado em CI: ele reporta tudo. O `--write` aplica as
+correções seguras (formatação e algumas regras de lint autocorretivas).
+
+## Configurando regras
+
+Em `biome.json` você habilita, desabilita ou ajusta a severidade das regras.
+Cada regra tem um grupo (ex.: `suspicious`, `style`, `complexity`):
+
+```json
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "warn"
+      },
+      "a11y": {
+        "useAltText": "error"
+      }
+    }
+  }
+}
+```
+
+Severidades: `off`, `warn` (avisa, não quebra) ou `error` (quebra o check).
+Grupos como `a11y` ajudam a garantir acessibilidade desde o lint.
+
+## Includes e excludes
+
+Controle quais arquivos entram na análise:
+
+```json
+{
+  "files": {
+    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "ignore": ["src/generated", "*.config.ts"]
+  }
+}
+```
+
+Isso evita que arquivos gerados ou de configuração poluam o relatório.
+
+## Integração com o editor
+
+Para ter formatação e lint ao salvar no VS Code, instale a extensão oficial
+"Biome" e configure no `.vscode/settings.json`:
+
+```json
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit"
+  }
+}
+```
+
+Assim o editor formata e aplica correções de lint automaticamente, mantendo o
+time inteiro no mesmo padrão sem discussão.
+
+## Exemplo de correção
+
+Código antes (com problemas):
+
+```ts
+const  x=1
+function foo(){return x}
+```
+
+Após `npx biome check . --write`:
+
+```ts
+const x = 1;
+function foo() {
+  return x;
+}
+```
+
+Espaçamento, ponto e vírgula e quebra de linha resolvidos sem você tocar.
+
+## Boas práticas
+
+- Use `biome check .` no pré-commit ou CI para impedir código fora do padrão.
+- Configure `lineWidth` condizente com o time (80 ou 100).
+- Prefira regras `recommended` e ajuste pontualmente, não desligue tudo.
+- Mantenha um único formatador no projeto (Biome, não Prettier).
+
+## Por isso importa
+
+Qualidade de código não deve depender de disciplina manual: ferramentas
+automatizadas garantem que todo o time escreva de forma consistente e peguem
+bugs óbvios (variáveis não usadas, `any` solto, falta de `alt` em imagens)
+antes do review. O Biome faz isso em Rust, rápido e sem o peso de manter duas
+ferramentas. Adotá-lo desde cedo evita o "estilo de cada um" e libera o review
+para discutir arquitetura.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que o
+Biome substitui, a diferença entre `check`, `format` e `lint`, como configurar
+severidade de regras em `biome.json`, e por que não se deve rodar Prettier e
+Biome juntos.

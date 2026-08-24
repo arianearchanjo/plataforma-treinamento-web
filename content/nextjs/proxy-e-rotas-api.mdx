@@ -1,0 +1,214 @@
+# proxy.ts e Route Handlers
+
+**No Next.js 16**, a proteção otimista de rotas e os rewrites passaram a ser feitos com `proxy.ts`, que substitui o antigo `middleware.ts`. Já a construção de backend (endpoints de API) acontece em **Route Handlers** (`app/api/.../route.ts`). Esta lição cobre os dois, com exemplos realistas de um projeto Next 16.
+
+## `proxy.ts`: a substituição de `middleware.ts`
+
+O `proxy.ts` fica na raiz do projeto (ou em `src/`) e exporta uma função que recebe a `NextRequest` e decide como o fluxo continua. Ele é executado de forma **otimista** e leve, antes da requisição chegar à aplicação.
+
+```ts
+// proxy.ts  (raiz do projeto, ao lado de package.json)
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export function proxy(request: NextRequest) {
+  const token = request.cookies.get("session")?.value;
+
+  // Proteção otimista: sem cookie de sessão, manda para login
+  if (!token && request.nextUrl.pathname.startsWith("/painel")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
+}
+```
+
+### Proteção otimista, não definitiva
+
+O `proxy.ts` faz verificações baratas (presença de cookie, header). A validação **completa** da sessão (assinatura, expiração) deve ocorrer no Server Component ou Route Handler, pois o proxy roda cedo e não deve bloquear com I/O pesado.
+
+```ts
+// proxy.ts — apenas redireciona se o cookie estiver ausente
+export function proxy(request: NextRequest) {
+  const temSessao = Boolean(request.cookies.get("session")?.value);
+  if (request.nextUrl.pathname.startsWith("/dashboard") && !temSessao) {
+    return NextResponse.redirect(new URL("/login?redirect=/dashboard", request.url));
+  }
+  return NextResponse.next();
+}
+```
+
+### Rewrites e redirecionamentos
+
+Além de proteger, o `proxy.ts` faz rewrites (servir conteúdo de outro lugar sem mudar a URL) e redirects.
+
+```ts
+export function proxy(request: NextRequest) {
+  // Rewrite: /blog/xyz mostra conteúdo de /conteudo/xyz, URL intacta
+  if (request.nextUrl.pathname.startsWith("/blog/")) {
+    const slug = request.nextUrl.pathname.replace("/blog/", "");
+    return NextResponse.rewrite(new URL(`/conteudo/${slug}`, request.url));
+  }
+  return NextResponse.next();
+}
+```
+
+## Route Handlers
+
+Route Handlers são arquivos `route.ts` dentro de `app/api`. Cada arquivo exporta funções nomeadas por verbo HTTP (`GET`, `POST`, `PUT`, `DELETE`).
+
+```ts
+// app/api/usuarios/route.ts
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const usuarios = await listarUsuarios();
+  return NextResponse.json(usuarios);
+}
+```
+
+### `NextRequest` e `NextResponse`
+
+`NextRequest` estende a `Request` padrão com utilidades (cookies, `nextUrl`). `NextResponse` facilita respostas JSON, redirects e cookies.
+
+```ts
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const pagina = request.nextUrl.searchParams.get("pagina") ?? "1";
+  return NextResponse.json({ pagina });
+}
+```
+
+### `GET` e `POST`
+
+```ts
+// app/api/posts/route.ts
+import { NextResponse, type NextRequest } from "next/server";
+import { db } from "@/lib/db";
+
+export async function GET() {
+  const posts = await db.post.findMany();
+  return NextResponse.json(posts);
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const post = await db.post.create({ data: body });
+  return NextResponse.json(post, { status: 201 });
+}
+```
+
+### Lendo o body (JSON)
+
+Use `await request.json()` para corpos JSON. Para formulários, `await request.formData()`.
+
+```ts
+export async function POST(request: NextRequest) {
+  const { titulo, conteudo } = await request.json();
+  if (!titulo) {
+    return NextResponse.json({ erro: "título obrigatório" }, { status: 400 });
+  }
+  // ...
+}
+```
+
+### Cookies e sessão
+
+Dentro de um Route Handler você pode ler e escrever cookies, integrado à sessão (ex.: Better-Auth).
+
+```ts
+import { auth } from "@/lib/auth";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const sessao = await auth.api.getSession({ headers: request.headers });
+  if (!sessao) {
+    return NextResponse.json({ erro: "não autenticado" }, { status: 401 });
+  }
+  return NextResponse.json({ usuario: sessao.user });
+}
+```
+
+### Exemplo completo: criação autenticada
+
+```ts
+// app/api/posts/route.ts
+import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+export async function POST(request: NextRequest) {
+  const sessao = await auth.api.getSession({ headers: request.headers });
+  if (!sessao) {
+    return NextResponse.json({ erro: "não autenticado" }, { status: 401 });
+  }
+
+  const { titulo, conteudo } = await request.json();
+  const post = await db.post.create({
+    data: { titulo, conteudo, autorId: sessao.user.id },
+  });
+
+  return NextResponse.json(post, { status: 201 });
+}
+```
+
+## Quando usar proxy vs Route Handler
+
+- `proxy.ts`: lógica otimista de rota (redirect/rewrite) antes de renderizar.
+- Route Handler: expor endpoints de API, receber `POST`, integrar backend.
+
+## Ordem de execução do proxy
+
+O `proxy.ts` roda para toda requisição antes da renderização da rota, permitindo redirect/rewrite rápido. Ele é uma camada fina: deve ser rápido e sem I/O bloqueante (ex.: não consulte o banco para validar sessão).
+
+```ts
+export function proxy(request: NextRequest) {
+  // executa cedo, para todas as rotas
+  const caminho = request.nextUrl.pathname;
+  if (caminho.startsWith("/admin") && !request.cookies.get("admin")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  return NextResponse.next();
+}
+```
+
+## Exemplo: redirect preservando destino
+
+É comum redirecionar para login guardando a página de origem, para retornar após autenticar.
+
+```ts
+export function proxy(request: NextRequest) {
+  const sessao = request.cookies.get("session")?.value;
+  const path = request.nextUrl.pathname;
+  if (!sessao && path.startsWith("/conta")) {
+    const url = new URL("/login", request.url);
+    url.searchParams.set("redirect", path);
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
+}
+```
+
+## Boas práticas
+
+- No `proxy.ts`, faça apenas checagens leves (presença de cookie); valide de verdade no Server Component.
+- Use `route.ts` para APIs e `proxy.ts` para fluxo de navegação.
+- Retorne status corretos (`201`, `400`, `401`) nos Route Handlers.
+- Valide o corpo da requisição antes de tocar o banco.
+- Centralize `auth` e `db` em `lib/` para reaproveitar.
+
+## Armadilhas comuns
+
+- Achar que o `proxy.ts` substitui validação de sessão (ele é otimista).
+- Confundir `proxy.ts` com `middleware.ts` (no Next 16 use `proxy.ts`).
+- Esquecer de `await request.json()` e tratar a Promise como objeto.
+- Retornar dados sensíveis sem checar autenticação no Route Handler.
+
+## Por isso importa
+
+`proxy.ts` e Route Handlers são as portas de entrada e saída da sua aplicação Next 16: o proxy protege rotas com leveza, enquanto os Route Handlers expõem um backend coeso no mesmo projeto. Dominar os dois é o que permite construir fluxos autenticados e APIs reais — como os que a DevTrilha usa com Better-Auth e Prisma.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que substitui o `middleware.ts` no Next 16, a diferença entre proteção otimista e validação real, como criar um Route Handler `GET`/`POST`, e como ler JSON e cookies em `request`.

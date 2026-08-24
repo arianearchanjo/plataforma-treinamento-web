@@ -1,0 +1,194 @@
+# Tipos e variáveis
+
+**Variáveis** são "caixas" nomeadas que guardam valores na memória, e os
+**tipos** definem o que esses valores podem representar e como o JavaScript os
+trata. Entender a diferença entre `var`, `let` e `const`, como funciona o
+escopo e como os tipos primitivos se comportam é a fundação de todo código
+JavaScript correto e previsível.
+
+## Declarando variáveis: var, let e const
+
+O JavaScript moderno (ES6+) oferece três palavras-chave, mas na prática você
+usará quase sempre `let` e `const`.
+
+```js
+var nome = "Ana";      // evite: escopo de função e sofre hoisting
+let idade = 30;        // pode ser reatribuída
+const cidade = "SP";   // NÃO pode ser reatribuída (constante)
+```
+
+### Regra prática
+
+- Use `const` por padrão.
+- Use `let` apenas quando precisar reatribuir o valor.
+- Esqueça `var` em código novo — seus problemas de escopo e hoisting raramente
+  valem a pena.
+
+```js
+const pi = 3.14159;
+// pi = 3; // ❌ TypeError: Assignment to constant variable
+
+let contador = 0;
+contador = contador + 1; // ✅ ok
+```
+
+Importante: `const` impede a **reatribuição**, mas não torna o valor
+"imutável" no caso de objetos e arrays — o conteúdo interno pode mudar.
+
+```js
+const pessoa = { nome: "Ana" };
+pessoa.nome = "Beto"; // ✅ ok: estamos mudando a propriedade, não reatribuir
+// pessoa = {};       // ❌ erro
+```
+
+## Hoisting
+
+`var` e as declarações de função são "içadas" (hoisted) para o topo do escopo,
+mas apenas a **declaração**, não a inicialização. `let` e `const` também são
+içados, porém ficam em uma "zona morta temporal" até serem declarados.
+
+```js
+console.log(a); // undefined (var foi içado sem valor)
+var a = 10;
+
+console.log(b); // ❌ ReferenceError: Cannot access 'b' before initialization
+let b = 20;
+```
+
+Por isso `let`/`const` são mais seguros: impedem o uso acidental antes da
+definição.
+
+## Escopo de bloco
+
+`let` e `const` respeitam o **escopo de bloco** (`{}`), como em `if`, `for` e
+funções. `var` ignora blocos e "vaza" para a função.
+
+```js
+if (true) {
+  let x = 1;
+  var y = 2;
+}
+console.log(y); // 2  (var escapou do bloco)
+// console.log(x); // ❌ x não existe fora do bloco
+```
+
+## Tipos primitivos
+
+O JavaScript tem 7 tipos primitivos (valores imutáveis e passados por valor):
+
+| Tipo       | Exemplo                    | Descrição                        |
+| ---------- | -------------------------- | -------------------------------- |
+| `string`   | `"oi"`, `'oi'`, `` `oi` `` | texto                            |
+| `number`   | `42`, `3.14`               | números (inteiros e decimais)    |
+| `bigint`   | `9007199254740993n`        | inteiros grandes                 |
+| `boolean`  | `true`, `false`            | verdadeiro/falso                 |
+| `null`     | `null`                     | ausência de valor (intencional)  |
+| `undefined`| `undefined`                | valor não atribuído              |
+| `symbol`   | `Symbol("id")`             | identificador único e imutável   |
+
+```js
+const texto = "JavaScript";
+const ano = 2026;
+const grande = 12345678901234567890n;
+const ativo = true;
+const vazio = null;
+let naoDefinido; // undefined
+const id = Symbol("id");
+```
+
+`null` e `undefined` são diferentes: `undefined` é o valor padrão de algo não
+inicializado; `null` você atribui explicitamente para dizer "não há valor".
+
+## typeof
+
+Use `typeof` para inspecionar o tipo de um valor em runtime.
+
+```js
+typeof "oi";        // "string"
+typeof 42;          // "number"
+typeof true;        // "boolean"
+typeof undefined;   // "undefined"
+typeof Symbol();    // "symbol"
+typeof 10n;         // "bigint"
+typeof {};          // "object"
+typeof [];          // "object"  ⚠️ array é object!
+typeof null;        // "object"  ⚠️ famoso bug histórico
+typeof function(){};// "function"
+```
+
+Cuidado com as duas armadilhas: `typeof null === "object"` e `typeof [] ===
+"object"`. Para arrays use `Array.isArray([])`.
+
+## Template literals
+
+Strings modernas usam crase (`` ` ``) e permitem interpolação com `${}`.
+
+```js
+const nome = "Ana";
+const saudacao = `Olá, ${nome}! Você tem ${30 + 1} anos.`;
+console.log(saudacao); // Olá, Ana! Você tem 31 anos.
+
+// Multi-linha sem concatenação feia
+const html = `
+  <ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+  </ul>
+`;
+```
+
+## Coerção de tipos
+
+JavaScript converte tipos automaticamente em operações mistas — às vezes de
+forma surpreendente. Isso é **coerção implícita**.
+
+```js
+"5" + 1;     // "51"  (number vira string)
+"5" - 1;     // 4     (string vira number)
+"5" * "2";   // 10
+true + 1;    // 2
+null + 1;    // 1
+undefined + 1; // NaN
+
+5 == "5";    // true  (compara valor após coerção)
+5 === "5";   // false (compara valor E tipo)
+```
+
+### Sempre prefira `===` e `!==`
+
+O operador de igualdade estrita evita coerção oculta e bugs difíceis.
+
+```js
+const entrada = "10";
+if (entrada === 10) { /* não entra */ }
+if (Number(entrada) === 10) { /* entra, conversão explícita */ }
+```
+
+## Boas práticas
+
+- Declare tudo com `const`; mude para `let` só quando reatribuir for preciso.
+- Nunca use `var` em código novo.
+- Use `===`/`!==` sempre.
+- Converta tipos de forma **explícita** (`Number()`, `String()`, `Boolean()`)
+  em vez de confiar na coerção.
+- Nomeie booleanos com prefixos como `is`, `has`, `can` (`isAtivo`, `temCpf`).
+
+## Armadilhas comuns
+
+- Achar que `const` torna objetos imutáveis (não torna).
+- Usar `==` e cair em coerção inesperada.
+- Esquecer que `typeof null` retorna `"object"`.
+- Acessar variável `let`/`const` antes de declarar (zona morta temporal).
+
+## Por isso importa
+
+Variáveis e tipos são o ABC da linguagem: quase todo bug de iniciante nasce de
+confusão entre `let`/`const`, coerção silenciosa ou escopo mal entendido.
+Dominar esses conceitos agora evita uma categoria inteira de erros no futuro e
+torna seu código mais previsível e legível.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença
+entre `var`, `let` e `const`, o que é hoisting, os 7 tipos primitivos, o uso de
+template literals e por que `===` é preferível a `==`.

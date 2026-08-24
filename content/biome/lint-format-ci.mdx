@@ -1,0 +1,173 @@
+# Lint, format e CI
+
+> Módulo 11 · Biome
+
+**Colocar o Biome no pipeline de qualidade** significa garantir que nenhum
+código fora do padrão chegue à branch principal. Format on save cuida do
+desenvolvedor, mas o portão final é a CI (Continuous Integration): ela roda o
+`biome check` em cada Pull Request e bloqueia quem viola o padrão. Esta lição
+mostra como automatizar isso no GitHub Actions e nos scripts do projeto.
+
+## Scripts no package.json
+
+Centralize os comandos para o time usar sempre a mesma chamada:
+
+```json
+{
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check .",
+    "check:fix": "biome check . --write",
+    "prepare": "biome ci ."
+  }
+}
+```
+
+- `npm run check` mostra problemas sem alterar arquivos (usado na CI).
+- `npm run check:fix` aplica correções (usado localmente).
+- `biome ci .` é a versão "não interativa" do check, feita para pipelines:
+  ela falha se houver qualquer diferença de formatação ou lint.
+
+## Format on save
+
+No `.vscode/settings.json` do projeto (já visto na lição anterior):
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit"
+  }
+}
+```
+
+Isso faz o editor corrigir e formatar sozinho ao salvar, reduzindo o que a CI
+precisa pegar. Recomende a mesma configuração no README para quem usa outro
+editor (Biome tem CLI e LSP para NeoVim, JetBrains, etc.).
+
+## Regras e severidade em biome.json
+
+Para a CI ser efetiva, decida o que é `error` (bloqueia) e o que é `warn`
+(avisa). Exemplo voltado a um projeto React/Next:
+
+```json
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useKeyWithClickEvents": "error",
+        "useAltText": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn"
+      }
+    }
+  },
+  "files": {
+    "ignore": ["dist", ".next", "node_modules", "src/generated"]
+  }
+}
+```
+
+Incluir/excluir pastes com `files.include`/`files.ignore` mantém a CI rápida e
+livre de ruído de arquivos gerados.
+
+## Bloqueando PRs com GitHub Actions
+
+Crie o arquivo `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Biome check
+        run: npx biome ci .
+      - name: Testes
+        run: npm test
+```
+
+O passo `npx biome ci .` falha o job se houver qualquer problema de lint ou
+formatação, e como o job é obrigatório (branch protection), o PR fica bloqueado
+até ser corrigido. Combine com `npm test` para também impedir regressões.
+
+## Pré-commit com Husky (opcional)
+
+Para pegar problemas antes de abrir o PR, use um hook de pré-commit:
+
+```bash
+npm install -D husky lint-staged
+npx husky init
+```
+
+Em `.husky/pre-commit`:
+
+```bash
+npx biome check . --write
+```
+
+E no `package.json`:
+
+```json
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,css}": ["biome check --write"]
+  }
+}
+```
+
+Assim o Biome corrige apenas os arquivos alterados no commit, mantendo o
+repositório limpo o tempo todo.
+
+## Fluxo recomendado
+
+1. Desenvolvedor escreve código; editor formata ao salvar.
+2. `npm run check:fix` antes de commitar (corrige o resto).
+3. Husky roda Biome no pré-commit.
+4. CI roda `biome ci .` + testes no PR; PR só mergeia se verde.
+
+Esse "muro de qualidade" em camadas evita que código ruim chegue ao main.
+
+## Boas práticas de CI
+
+- Use `biome ci` (não `check --write`) na CI: a CI não deve alterar arquivos,
+  apenas apontar o erro para o autor corrigir.
+- Torne o job obrigatório no branch protection do GitHub.
+- Mantenha `node-version` e comando de instalação iguais ao ambiente local.
+- Rode testes junto do lint para não aprovar PR quebrado "limpo".
+
+## Por isso importa
+
+Padrão de código não se impõe por conversa: ele precisa ser automatizado. Ter o
+Biome no `format on save`, em pré-commit e — principalmente — bloqueando PRs na
+CI garante que o repositório permaneça consistente e livre de problemas
+óbvios sem depender da boa vontade de ninguém. É o que permite que o time
+escale e faça review do que importa de verdade.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a
+diferença entre `biome check`, `biome ci` e `biome format`, como configurar
+severidade de regras, e como o GitHub Actions bloqueia PRs que violam o
+padrão de lint/format.

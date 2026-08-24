@@ -1,0 +1,198 @@
+# Tipando funções e objetos
+
+**Tipar funções e objetos é onde o TypeScript começa a valer a pena de verdade.**
+Ao descrever a forma dos seus dados e das suas funções, você transforma a
+intenção do código em algo que o compilador — e seus colegas — conseguem
+verificar automaticamente.
+
+## Anotando parâmetros e retorno de funções
+
+A forma mais comum de tipagem é anotar os parâmetros e o valor de retorno:
+
+```ts
+function somar(a: number, b: number): number {
+  return a + b;
+}
+```
+
+Se esquecermos de retornar ou retornarmos tipo errado, o compilador avisa:
+
+```ts
+function saudacao(nome: string): string {
+  // Erro: uma função cujo tipo de retorno é 'string' deve retornar um valor
+}
+```
+
+Funções arrow seguem a mesma ideia, mas o tipo de retorno costuma ser inferido
+quando há um `return` claro:
+
+```ts
+const multiplicar = (a: number, b: number): number => a * b;
+```
+
+## Function types (assinaturas de função)
+
+Você pode descrever o "formato" de uma função como um tipo, útil para passar
+funções como argumento ou guardar em variáveis:
+
+```ts
+type Operacao = (a: number, b: number) => number;
+
+const soma: Operacao = (x, y) => x + y;
+const subtrai: Operacao = (x, y) => x - y;
+
+function calcular(op: Operacao, x: number, y: number): number {
+  return op(x, y);
+}
+```
+
+Note que `x` e `y` dentro de `soma` e `subtrai` não precisam de anotação: o
+`type Operacao` já garantiu os tipos. Isso é **inferência de tipo**.
+
+## Tipando objetos inline
+
+Objetos podem ser tipados direto na anotação, listando cada propriedade:
+
+```ts
+const usuario: {
+  nome: string;
+  idade: number;
+  ativo: boolean;
+} = {
+  nome: "Beto",
+  idade: 41,
+  ativo: true,
+};
+```
+
+Se faltar uma propriedade ou sobrar uma não declarada, o erro aparece:
+
+```ts
+const usuario: { nome: string; idade: number } = {
+  nome: "Beto",
+  // Erro: a propriedade 'idade' está faltando
+};
+```
+
+## Interfaces
+
+Para objetos reutilizados, a palavra-chave `interface` cria um contrato nomeado:
+
+```ts
+interface Usuario {
+  nome: string;
+  idade: number;
+  ativo: boolean;
+}
+
+function exibir(u: Usuario): void {
+  console.log(`${u.nome} tem ${u.idade} anos`);
+}
+```
+
+Interfaces são abertas: você pode "estender" o mesmo nome somando campos em
+outros pontos (útil em ambientes como o DOM). Na maior parte dos casos, porém,
+use uma declaração única e clara.
+
+## interface vs type
+
+Tanto `interface` quanto `type` servem para descrever formas de objeto, e em
+muitos casos são intercambiáveis:
+
+```ts
+type PontoType = { x: number; y: number };
+interface PontoInterface { x: number; y: number; }
+```
+
+Diferenças práticas:
+
+- `interface` é melhor para objetos/contratos e suporta `extends` de forma
+  direta e declaração mesclada (declaration merging).
+- `type` é mais flexível: pode representar uniões (`A | B`), tuplas, e tipos
+  primitivos aliasados (`type ID = string`).
+
+Regra simples: para modelar objetos e contratos de dados, prefira `interface`;
+quando precisar de uniões, tuplas ou composição de tipos, use `type`.
+
+## Propriedades opcionais com `?`
+
+Nem toda propriedade é obrigatória. O `?` marca campo opcional:
+
+```ts
+interface Perfil {
+  nome: string;
+  bio?: string; // pode existir ou não
+}
+
+const a: Perfil = { nome: "Lia" };                 // ok
+const b: Perfil = { nome: "Lia", bio: "Dev" };     // ok
+```
+
+Ao acessar uma propriedade opcional, o TypeScript lembra que ela pode ser
+`undefined`, forçando você a tratar esse caso.
+
+## readonly
+
+`readonly` impede reatribuição depois da criação, útil para dados que não devem
+mudar:
+
+```ts
+interface Config {
+  readonly apiUrl: string;
+}
+
+const cfg: Config = { apiUrl: "https://api.exemplo.com" };
+cfg.apiUrl = "outra"; // Erro: 'apiUrl' é somente leitura
+```
+
+Isso é uma garantia em tempo de compilação — não impede mutação profunda de
+objetos aninhados, mas documenta a intenção e protege o acesso direto.
+
+## Union types básicos
+
+Uma união diz que um valor pode ser de um ou outro tipo, separados por `|`:
+
+```ts
+function formatarId(id: number | string): string {
+  return `ID-${id}`;
+}
+
+formatarId(10);     // ok
+formatarId("abc");  // ok
+```
+
+Dentro da função, só operamos com algo válido para ambos os tipos (ou usamos
+verificação de tipo/`typeof` para separar os casos). Uniões são a base da
+tipagem precisa sem criar tipos enormes.
+
+## Inferência: deixe o compilador ajudar
+
+Sempre que der, deixe o TypeScript inferir em vez de anotar tudo:
+
+```ts
+const total = 100;            // inferido como number
+const nomes = ["Ana", "Beto"]; // inferido como string[]
+
+function dobro(n: number) {
+  return n * 2;               // retorno inferido como number
+}
+```
+
+Anotamos quando:
+- os tipos não são óbvios (parâmetros de função sempre, por clareza);
+- queremos um contrato explícito (interfaces públicas);
+- precisamos de um tipo mais específico que o inferido.
+
+## Por isso importa
+
+Funções e objetos são o coração de quase todo programa JavaScript. Tipá-los
+transforma documentação implícita em verificação real: o compilador avisa se
+alguém passa um objeto incompleto ou chama uma função com argumento errado.
+Essa disciplina é o que separa um protótipo frágil de uma base de código que
+escala com a equipe.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: anotação
+de parâmetros e retorno, a diferença entre `interface` e `type`, propriedades
+opcionais e `readonly`, e o uso de uniões com `|`.

@@ -1,0 +1,196 @@
+# Testes de componentes React
+
+> Módulo 12 · Vitest
+
+**Testar componentes React** significa verificar o que o usuário realmente vê e
+faz, não os detalhes internos de implementação. Com a Testing Library e o
+Vitest, escrevemos testes que renderizam o componente, simulam interações
+(clicar, digitar) e afirmam o resultado na tela — exatamente como um humano
+faría. Isso mantém o teste resiliente a refatorações.
+
+## Configurando o ambiente
+
+Componentes React precisam de um DOM. Usamos `jsdom` e a
+`@testing-library/react`:
+
+```bash
+npm install -D vitest jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom
+```
+
+No `vitest.config.ts`:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+  },
+});
+```
+
+O `setup.ts` importa os matchers extras do jest-dom:
+
+```ts
+// src/test/setup.ts
+import "@testing-library/jest-dom/vitest";
+```
+
+## Renderizando e consultando
+
+O ponto de partida é `render`, que monta o componente no jsdom e devolve
+utilitários. Para encontrar elementos usamos os **queryers** da Testing Library,
+que privilegiam acessibilidade:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { Botao } from "./Botao";
+
+describe("Botao", () => {
+  it("renderiza o rótulo", () => {
+    render(<Botao>Enviar</Botao>);
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeInTheDocument();
+  });
+});
+```
+
+### Queryers principais
+
+- `getByRole`: pelo papel ARIA (`button`, `heading`, `textbox`). Prefira sempre.
+- `getByText`: pelo texto visível.
+- `getByLabelText`: por rótulo de formulário (ideal para inputs).
+- `getByPlaceholderText`, `getByTestId`: use `data-testid` apenas quando nada
+  mais funcionar.
+
+Variante: `getBy*` falha se não achar; `queryBy*` retorna `null`; `findBy*`
+(retorna Promise) serve para elementos que aparecem de forma assíncrona.
+
+## Testando interações
+
+O `userEvent` simula o usuário real (digitação, clique, foco) de forma mais
+fiel que o `fireEvent`:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Formulario } from "./Formulario";
+
+it("envia o nome digitado", async () => {
+  const user = userEvent.setup();
+  const aoEnviar = vi.fn();
+  render(<Formulario aoEnviar={aoEnviar} />);
+
+  await user.type(screen.getByLabelText("Nome"), "Ana");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  expect(aoEnviar).toHaveBeenCalledWith("Ana");
+});
+```
+
+Use `await` com `userEvent` porque as interações podem disparar efeitos
+assíncronos. O `fireEvent` ainda é útil para eventos simples e síncronos.
+
+## Mock de funções
+
+`vi.fn()` cria uma função "espiona" que registra se foi chamada, com quê e
+quantas vezes:
+
+```tsx
+it("notifica quando clicado", () => {
+  const onSelect = vi.fn();
+  render(<Item onSelect={onSelect} />);
+  screen.getByRole("button").click();
+  expect(onSelect).toHaveBeenCalledTimes(1);
+  expect(onSelect).toHaveBeenCalledWith("item-1");
+});
+```
+
+Você pode também definir retorno: `vi.fn().mockReturnValue(42)` ou
+`vi.fn().mockResolvedValue("ok")`. Para restaurar comportamentos entre testes,
+use `vi.restoreAllMocks()` no `afterEach`.
+
+## Cleanup automático
+
+A Testing Library limpa o DOM automaticamente entre os testes (o Vitest já
+configura o `afterEach(cleanup)` quando detecta a biblioteca). Isso garante que
+um teste não "vaza" elementos para o seguinte. Se precisar limpar mocks
+manualmente:
+
+```ts
+import { afterEach, vi } from "vitest";
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+```
+
+## Exemplo: testando o QuizCard do projeto
+
+Neste projeto, o `QuizCard` usa Radix `RadioGroup` para as alternativas e Jotai
+para o estado. Um teste foca no comportamento — selecionar uma alternativa e
+corrigir:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QuizCard, type QuizView } from "@/components/QuizCard";
+
+const quizFake: QuizView = {
+  id: 1,
+  perguntas: [
+    {
+      id: 10,
+      enunciado: "Qual ferramenta faz lint e format?",
+      alternativas: [
+        { id: 1, texto: "Biome" },
+        { id: 2, texto: "ESLint" },
+        { id: 3, texto: "Prettier" },
+      ],
+    },
+  ],
+};
+
+it("permite selecionar e corrigir uma resposta", async () => {
+  const user = userEvent.setup();
+  render(<QuizCard quiz={quizFake} />);
+
+  await user.click(screen.getByText("Biome"));
+  expect(screen.getByText("Biome").closest("button")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+});
+```
+
+## Boas práticas: comportamento, não implementação
+
+- **Não teste detalhes internos**: evite afirmar estados de hooks ou nomes de
+  classes CSS frágeis.
+- **Teste como o usuário**: pelo rótulo, papel e texto, não por `data-testid`.
+- **Um comportamento por teste**: clicar e ver resultado, separado de digitar.
+- **Evite `act` manual**: a Testing Library já envolve interações em `act`.
+- **Mantenha o teste próximo do componente**: `Botao.test.tsx` ao lado de
+  `Botao.tsx`.
+
+## Armadilhas comuns
+
+- Esquecer `await` no `userEvent`, causando asserts fora da hora.
+- Usar `getByText` para textos que mudam (prefira `getByRole`).
+- Acoplar o teste a implementação, quebrando a cada refactor.
+- Não limpar mocks, fazendo testes interferirem entre si.
+
+## Por isso importa
+
+Componentes são onde a lógica vira experiência para o usuário, e bugs de UI são
+os mais visíveis. Testar pelo comportamento — clicar, digitar, ver o resultado
+— garante que refatorar o componente não quebra o que o usuário espera, e ainda
+serve de documentação viva de como a interface deve funcionar.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença
+entre `getByRole` e `getByText`, quando usar `userEvent` versus `fireEvent`,
+como `vi.fn()` verifica chamadas de callback, e por que testamos comportamento
+em vez de implementação interna.

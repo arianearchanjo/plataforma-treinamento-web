@@ -1,0 +1,150 @@
+# Introdução ao Jotai
+
+**Jotai é uma biblioteca de gerenciamento de estado para React baseada em
+"átomos".** Inspirada no Recoil, ela parte do princípio de que o estado
+deve ser dividido em pequenas unidades independentes, permitindo re-renders
+precisos e um modelo mental simples.
+
+## O que é o Jotai?
+
+Em vez de um grande objeto de estado centralizado (como o Redux), o Jotai
+trabalha com **átomos**: as menores unidades de estado. Cada átomo é como uma
+variável reativa. Componentes leem e escrevem átomos individualmente, e só os
+componentes que dependem de um átomo específico re-renderizam quando ele muda.
+
+A filosofia é "bottom-up": você compõe estado a partir de átomos pequenos, em
+vez de quebrar um estado grande em pedaços.
+
+## atom() e useAtom
+
+Tudo começa com `atom()`, que cria um átomo com um valor inicial. Para usá-lo
+num componente, usamos o hook `useAtom`, que retorna `[valor, setValor]` — no
+mesmo espírito do `useState`:
+
+```tsx
+import { atom, useAtom } from "jotai";
+
+const contadorAtom = atom(0);
+
+function Contador() {
+  const [contador, setContador] = useAtom(contadorAtom);
+
+  return (
+    <div>
+      <p>Valor: {contador}</p>
+      <button onClick={() => setContador((c) => c + 1)}>Incrementar</button>
+    </div>
+  );
+}
+```
+
+O `contadorAtom` pode ser importado em qualquer componente. Quem usa o mesmo
+átomo compartilha o estado automaticamente — não precisa de `Provider` na
+configuração mais comum.
+
+## Diferença de Context e Redux
+
+- **Context API**: exige um `Provider` por valor e, quando o valor muda, todos
+  os consumidores re-renderizam. Bom para configuração raramente alterada, ruim
+  para estado frequente. O Jotai evita esse problema com re-render granular.
+- **Redux**: centraliza tudo numa store única e exige actions/reducers. É
+  poderoso, mas verboso para estados simples. O Jotai é muito mais enxuto para
+  casos do dia a dia.
+- **Jotai**: átomos independentes, re-render só nos consumidores afetados,
+  código mínimo. Ideal quando vários pedaços de estado mudam de forma
+  independente.
+
+## Instalação
+
+```bash
+npm i jotai
+```
+
+Como o Jotai usa hooks do React, ele já pressupõe o React instalado. Não há
+configuração de build especial — funciona com Vite, Next.js ou CRA.
+
+## Exemplo mínimo de contador
+
+Um contador completo, com estado compartilhado entre componentes, fica assim:
+
+```tsx
+import { atom, useAtom } from "jotai";
+
+const contadorAtom = atom(0);
+
+function Display() {
+  const [contador] = useAtom(contadorAtom);
+  return <h1>{contador}</h1>;
+}
+
+function Botoes() {
+  const [, setContador] = useAtom(contadorAtom);
+  return (
+    <div>
+      <button onClick={() => setContador((c) => c - 1)}>-</button>
+      <button onClick={() => setContador((c) => c + 1)}>+</button>
+    </div>
+  );
+}
+```
+
+Repare: `Display` e `Botoes` usam o mesmo `contadorAtom`, mas são componentes
+separados. O `Display` não re-renderiza por causa dos botões e vice-versa, a não
+ser que o valor mude.
+
+## Atualizando com função e valor absoluto
+
+O setter devolvido pelo `useAtom` aceita tanto um valor direto quanto uma
+função que recebe o valor anterior — exatamente como o `setState` do React:
+
+```tsx
+const [, setContador] = useAtom(contadorAtom);
+
+setContador(10);            // define o valor absoluto
+setContador((c) => c + 1);  // baseia-se no valor anterior
+```
+
+Prefira a forma funcional quando o novo valor depende do atual. Isso evita
+condições de corrida em atualizações seguidas dentro do mesmo ciclo de
+renderização.
+
+## Re-render granular
+
+Esse é o grande trunfo do Jotai. No exemplo acima, se criássemos dez átomos
+diferentes e dez componentes, mudar um átomo re-renderizaria apenas o
+componente que o consome — não os outros nove. Isso mantém a interface rápida
+mesmo com muito estado.
+
+Compare com um único objeto de estado gigante: qualquer alteração em qualquer
+campo costuma re-renderizar todos os leitores daquele objeto, a menos que você
+otimize manualmente.
+
+## Quando usar o Jotai
+
+O Jotai brilha quando:
+
+- Vários componentes precisam compartilhar pedaços de estado independentes.
+- Você quer evitar a verbosidade do Redux para estados de UI.
+- O desempenho de re-render importa e o estado é fragmentado.
+
+## Jotai em aplicações Next.js
+
+Como o estado é reativo e vive no cliente, os componentes que usam `useAtom`
+precisam ser Client Components (diretiva `"use client"`). O próprio átomo pode
+ser declarado em um módulo compartilhado e importado por vários lugares, mas o
+hook só executa no navegador. Em Server Components você não chama `useAtom` —
+limitando-se a importar o tipo/referência do átomo para passá-lo adiante.
+
+## Por isso importa
+
+Entender o Jotai expande seu repertório de gerenciamento de estado no React. Ele
+resolve de forma elegante o problema clássico de "estado compartilhado sem
+re-render desnecessário", com uma curva de aprendizado pequena. Dominar átomos
+é o primeiro passo para escrever aplicações React mais performáticas e
+modulares.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que é o
+Jotai e sua filosofia de átomos, a diferença prática para Context e Redux, como
+usar `atom` e `useAtom`, e o benefício de re-render granular.

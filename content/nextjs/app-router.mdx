@@ -1,0 +1,208 @@
+# App Router e rotas
+
+**O App Router** usa o sistema de arquivos como roteador: cada pasta dentro de `app/` vira um segmento de URL e cada arquivo `page.tsx` vira uma rota acessível. Isso elimina a necessidade de configurar rotas manualmente e reflete a estrutura do projeto na URL.
+
+## Sistema de arquivos como roteamento
+
+A regra central: `app/pasta/page.tsx` responde em `/pasta`.
+
+```text
+app/
+  page.tsx          -> "/"
+  blog/
+    page.tsx        -> "/blog"
+    post/
+      page.tsx      -> "/blog/post"
+```
+
+Qualquer pasta com `page.tsx` gera uma rota pública. Arquivos sem `page.tsx` (como `layout.tsx` ou componentes) não viram rotas sozinhos.
+
+## Rotas aninhadas e layouts
+
+`layout.tsx` define uma casca que envolve as páginas daquela pasta e de todas as subpastas, e **persiste** entre navegações (sem remontar).
+
+```tsx
+// app/blog/layout.tsx
+export default function BlogLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <section>
+      <aside>Menu do blog</aside>
+      <div>{children}</div>
+    </section>
+  );
+}
+```
+
+Assim, `/blog` e `/blog/post` compartilham o mesmo menu lateral.
+
+## Rotas dinâmicas
+
+Quando parte da URL é variável, use colchetes: `[slug]`, `[id]`.
+
+```tsx
+// app/blog/[slug]/page.tsx  -> "/blog/qualquer-slug"
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  return <h1>Post: {slug}</h1>;
+}
+```
+
+### Catch-all e opcional
+
+- `[...caminho]` captura um ou mais segmentos: `/a/b/c`.
+- `[[...caminho]]` captura zero ou mais (rota opcional).
+
+```tsx
+// app/docs/[...caminho]/page.tsx
+export default async function Docs({
+  params,
+}: {
+  params: Promise<{ caminho: string[] }>;
+}) {
+  const { caminho } = await params;
+  return <p>Seções: {caminho.join(" / ")}</p>;
+}
+```
+
+## `params` e `searchParams` (async no Next 16)
+
+A partir do Next.js 15/16, `params` e `searchParams` são **Promises** e devem ser aguardados dentro de componentes assíncronos.
+
+```tsx
+// app/busca/page.tsx
+export default async function Busca({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  return <h1>Resultados para: {q ?? ""}</h1>;
+}
+```
+
+`searchParams` representa a query string (`?q=react`); `params` representa os segmentos da rota.
+
+## Navegação com `<Link>`
+
+Use o componente `Link` para transições do lado do cliente, aproveitando prefetch e preservando o layout.
+
+```tsx
+import Link from "next/link";
+
+export default function Nav() {
+  return (
+    <nav>
+      <Link href="/">Início</Link>
+      <Link href="/blog/react-19">Post</Link>
+      <Link href="/busca?q=next">Buscar</Link>
+    </nav>
+  );
+}
+```
+
+Evite `<a href>` comum para rotas internas: ele causa reload completo.
+
+## `notFound()` e rotas inexistentes
+
+Para sinalizar que uma rota não existe (ex.: slug inválido), chame `notFound()`.
+
+```tsx
+import { notFound } from "next/navigation";
+
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const post = await buscarPost(slug);
+  if (!post) notFound(); // renderiza not-found.tsx
+  return <article>{post.titulo}</article>;
+}
+```
+
+## `generateStaticParams`
+
+Em rotas dinâmicas, você pode listar com antecedência quais valores devem ser gerados estaticamente no build, melhorando performance.
+
+```tsx
+export async function generateStaticParams() {
+  const posts = await listarSlugs();
+  return posts.map((slug) => ({ slug }));
+}
+
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  // ...
+}
+```
+
+## Exemplo de árvore completa
+
+```text
+app/
+  layout.tsx
+  page.tsx                 -> "/"
+  blog/
+    layout.tsx
+    page.tsx               -> "/blog"
+    [slug]/
+      page.tsx             -> "/blog/:slug"
+  busca/
+    page.tsx               -> "/busca" (usa searchParams)
+```
+
+## Páginas de erro e loading
+
+Ao lado de `page.tsx` você pode criar `loading.tsx` e `error.tsx` para melhorar a experiência: o primeiro é o fallback de Suspense durante o carregamento, o segundo captura erros da subárvore.
+
+```tsx
+// app/blog/[slug]/loading.tsx
+export default function Carregando() {
+  return <p>Carregando post...</p>;
+}
+```
+
+```tsx
+// app/blog/[slug]/error.tsx
+"use client";
+export default function Erro({ reset }: { reset: () => void }) {
+  return (
+    <div>
+      <p>Algo deu errado.</p>
+      <button onClick={reset}>Tentar de novo</button>
+    </div>
+  );
+}
+```
+
+## Boas práticas
+
+- Aguarde `params`/`searchParams` (são Promises no Next 16).
+- Use `layout.tsx` para UI compartilhada e evite repetir cabeçalhos.
+- Prefira `Link` para navegação interna.
+- Use `generateStaticParams` para conteúdo conhecido de antemão.
+- Use `notFound()` para dados ausentes em vez de retornar `null`.
+
+## Armadilhas comuns
+
+- Esquecer de `await params` e tratar a Promise como objeto (erro típico no Next 16).
+- Usar `<a>` em vez de `Link` e perder a navegação client-side.
+- Achar que `layout.tsx` vira rota (ele é casca, não página).
+- Colocar lógica de rota em pasta sem `page.tsx`.
+
+## Por isso importa
+
+O App Router é o mapa da aplicação: entender que pastas viram rotas, layouts persistirem e `params`/`searchParams` serem assíncronos é o que permite criar qualquer estrutura de URL — do blog ao painel — de forma previsível e performática no Next.js 16.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: como pastas viram rotas, a diferença entre `layout.tsx` e `page.tsx`, rotas dinâmicas com `[slug]`, o fato de `params` ser Promise no Next 16, e o uso de `notFound()` e `generateStaticParams`.

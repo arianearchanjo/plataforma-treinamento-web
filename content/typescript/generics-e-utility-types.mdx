@@ -1,0 +1,191 @@
+# Generics e utility types
+
+**Generics permitem que funções, interfaces e classes trabalhem com qualquer
+tipo sem perder a segurança de tipo.** Combinados com os utility types
+embutidos, eles evitam aquele `any` tentador que destrói toda a proteção do
+TypeScript.
+
+## O problema que generics resolvem
+
+Imagine uma função que devolve o primeiro elemento de um array. Sem generics,
+você acaba forçando um tipo específico ou usando `any`:
+
+```ts
+function primeiro(arr: any[]): any {
+  return arr[0];
+}
+
+const x = primeiro([1, 2, 3]); // x é 'any' — perdemos o tipo number
+```
+
+O retorno `any` apaga a informação de tipo: o compilador não sabe mais que `x`
+é número. Generics resolvem isso parametrizando o tipo.
+
+## Funções genéricas
+
+Usamos `<T>` para declarar um parâmetro de tipo. O `T` é preenchido com base no
+argumento na hora da chamada:
+
+```ts
+function primeiro<T>(arr: T[]): T {
+  return arr[0];
+}
+
+const x = primeiro([1, 2, 3]);        // x é number
+const y = primeiro(["a", "b"]);       // y é string
+```
+
+O `T` é apenas uma convenção (de "Type"); você pode nomear como quiser, mas `T`,
+`U`, `K`, `V` são comuns. O importante é que o tipo de entrada e saída ficam
+**ligados** pelo mesmo `T`.
+
+Também podemos ter vários parâmetros:
+
+```ts
+function par<K, V>(chave: K, valor: V): [K, V] {
+  return [chave, valor];
+}
+```
+
+## Constraints com `extends`
+
+Às vezes queremos restringir o que `T` pode ser. Usamos `extends` para impor um
+contrato mínimo:
+
+```ts
+interface TemNome {
+  nome: string;
+}
+
+function logar<T extends TemNome>(item: T): T {
+  console.log(item.nome);
+  return item;
+}
+
+logar({ nome: "Ana", idade: 30 }); // ok: tem 'nome'
+logar({ idade: 30 });              // Erro: falta 'nome'
+```
+
+A constraint garante que, dentro da função, podemos usar com segurança o que o
+`extends` promete. É essencial para funções que acessam propriedades do
+argumento.
+
+## Utility types: ferramentas prontas
+
+O TypeScript traz tipos utilitários que transformam outros tipos. Os principais:
+
+### Partial
+
+Torna todas as propriedades opcionais — ótimo para funções de atualização:
+
+```ts
+interface Usuario {
+  nome: string;
+  idade: number;
+}
+
+function atualizar(id: number, dados: Partial<Usuario>) {
+  // dados pode ter nome, idade, ou apenas parte deles
+}
+```
+
+### Readonly
+
+Torna todas as propriedades somente leitura:
+
+```ts
+const config: Readonly<Usuario> = { nome: "X", idade: 1 };
+// config.nome = "Y"; // Erro: somente leitura
+```
+
+### Pick
+
+Seleciona apenas algumas propriedades de um tipo:
+
+```ts
+type ResumoUsuario = Pick<Usuario, "nome">; // { nome: string }
+```
+
+### Omit
+
+Remove propriedades — útil ao criar algo quase igual, mas sem um campo:
+
+```ts
+type NovoUsuario = Omit<Usuario, "idade">; // { nome: string }
+```
+
+### Record
+
+Cria um objeto cujas chaves e valores seguem um padrão:
+
+```ts
+type Erros = Record<string, string>;
+// equivalente a: { [chave: string]: string }
+```
+
+### ReturnType
+
+Captura o tipo de retorno de uma função — poderoso para evitar duplicar tipos:
+
+```ts
+function criarUsuario() {
+  return { nome: "Ana", idade: 30 };
+}
+
+type UsuarioCriado = ReturnType<typeof criarUsuario>;
+// { nome: string; idade: number }
+```
+
+## Combinando utility types
+
+Eles podem ser encadeados para expressar transformações precisas:
+
+```ts
+type FormularioParcial = Partial<Omit<Usuario, "nome">>;
+// { nome: string; idade?: number }
+```
+
+Quanto mais específico o tipo, menos `if` e menos `any` você precisa espalhar
+pelo código.
+
+## Boas práticas
+
+- Prefira `T` quando o tipo é genérico e `extends` quando precisa de garantias.
+- Nomeie parâmetros de tipo de forma descritiva quando houver vários (`TItem`,
+  `TKey`).
+- Use utility types para derivar tipos de fontes únicas — evite duplicar
+  formas manualmente.
+
+## Quando NÃO abusar de generics
+
+Generics aumentam a complexidade de leitura. Evite-os quando:
+
+- Um tipo concreto já resolve o caso (não tem vantagem em parametrizar).
+- A assinatura fica difícil de ler para quem mantém o código.
+- Um union type simples comunica melhor a intenção.
+
+```ts
+// Desnecessariamente genérico:
+function identidade<T>(v: T): T { return v; }
+
+// Se o uso é só number/string, prefira algo direto ou um union:
+function identidade(v: number | string) { return v; }
+```
+
+Generics são uma ferramenta, não um objetivo. Use quando o tipo de entrada
+precisa guiar o de saída, ou quando você está construindo algo realmente
+reutilizável (como coleções ou hooks).
+
+## Por isso importa
+
+Generics e utility types são o que transforma o TypeScript de "anotações
+básicas" em um sistema de tipos que modela programas de verdade. Eles eliminam
+`any`, evitam duplicação de tipos e tornam APIs reutilizáveis seguras. Saber
+quando usá-los — e quando não usar — é marca de código maduro e sustentável.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que
+resolvem os generics, como aplicar constraints com `extends`, a finalidade de
+utility types como `Partial`, `Pick`, `Omit`, `Record` e `ReturnType`, e as
+situações em que abusar de generics prejudica a clareza.

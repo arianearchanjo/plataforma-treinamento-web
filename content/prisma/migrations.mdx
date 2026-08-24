@@ -1,0 +1,216 @@
+# Migrations e workflow
+
+**Migration é o histórico versionado do seu banco: um conjunto de arquivos SQL, comitados no Git, que qualquer pessoa pode aplicar do zero e chegar exatamente ao mesmo estado. Sem isso, "funciona na minha máquina" vira política oficial.**
+
+Nesta lição você vai dominar `prisma migrate dev`, `prisma migrate deploy`, `prisma migrate status`, `prisma db push` e o que fazer quando algo dá errado.
+
+## O problema que migrations resolvem
+
+Você adiciona um campo `publicado` no model `Licao`. No seu banco local, tudo bem — você mesmo alterou. Mas:
+
+- a colega de time não tem essa coluna;
+- a CI cria um banco limpo e não sabe da mudança;
+- produção precisa da alteração aplicada **sem perder dados**.
+
+Migrations são a resposta: cada mudança de schema gera um arquivo SQL numerado e imutável.
+
+```
+prisma/
+  schema.prisma
+  migrations/
+    20260101120000_init/
+      migration.sql
+    20260112093000_adiciona_publicado_em_licao/
+      migration.sql
+    migration_lock.toml
+```
+
+O Prisma também mantém a tabela `_prisma_migrations` no banco, registrando quais arquivos já rodaram.
+
+## `prisma migrate dev` — o comando do dia a dia
+
+```bash
+npx prisma migrate dev --name adiciona_publicado_em_licao
+```
+
+Ele faz quatro coisas, em ordem:
+
+1. Compara o `schema.prisma` com o estado registrado das migrations e **gera** um novo `migration.sql`.
+2. **Aplica** esse SQL no banco de desenvolvimento.
+3. Reexecuta o **seed**, se configurado, em caso de reset.
+4. **Regenera** o Prisma Client (equivale a `prisma generate`).
+
+Ou seja: depois dele, seu código TypeScript já conhece o campo novo.
+
+Use apenas em **desenvolvimento**. Ele pode decidir resetar o banco, e resetar produção é um evento de carreira.
+
+Se você omitir `--name`, a CLI pergunta interativamente. Nomes descritivos ajudam muito na leitura do histórico: `cria_tabela_matricula`, `torna_email_unico`.
+
+## Alterações destrutivas
+
+Quando a mudança pode perder dados, o Prisma avisa antes:
+
+```bash
+⚠️ We found changes that cannot be executed:
+  • Added the required column `resumo` to the `Licao` table without a default value.
+```
+
+Estratégias para sair disso:
+
+- adicionar o campo como opcional (`String?`) e preencher depois;
+- dar um `@default("")` temporário;
+- fazer uma migration em três passos: adiciona opcional → backfill com script → torna obrigatório.
+
+Você pode editar o `migration.sql` gerado **antes** de aplicá-lo (use `--create-only`) para incluir um `UPDATE` de backfill:
+
+```bash
+npx prisma migrate dev --create-only --name backfill_resumo
+# edite prisma/migrations/.../migration.sql
+npx prisma migrate dev
+```
+
+Depois de aplicada e comitada, uma migration é **imutável**. Corrija com uma nova, nunca reescrevendo a antiga.
+
+## `prisma migrate deploy` — produção e CI
+
+```bash
+npx prisma migrate deploy
+```
+
+Características:
+
+- aplica apenas migrations **pendentes**, em ordem;
+- **nunca** gera arquivos novos e **nunca** reseta o banco;
+- não é interativo — perfeito para pipeline.
+
+Um `package.json` típico:
+
+```json
+{
+  "scripts": {
+    "build": "prisma generate && next build",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
+```
+
+E no deploy: `npm ci && npm run db:deploy && npm run build`.
+
+## `prisma migrate status`
+
+```bash
+npx prisma migrate status
+```
+
+Responde três perguntas:
+
+- há migrations no repositório que ainda não foram aplicadas neste banco?
+- há migrations aplicadas no banco que não existem no repositório (alguém removeu)?
+- alguma migration falhou pela metade?
+
+É o primeiro comando a rodar quando um ambiente se comporta de forma estranha.
+
+## `prisma db push` — protótipo sem histórico
+
+```bash
+npx prisma db push
+```
+
+Empurra o schema direto para o banco, **sem criar arquivos de migration**. Também regenera o cliente.
+
+Quando usar:
+
+- protótipo descartável, spike de fim de semana;
+- banco local de testes que você recria à vontade;
+- projetos com banco sem suporte a shadow database.
+
+Quando **não** usar: qualquer banco compartilhado ou produção. Sem histórico, não há como reproduzir nem reverter, e misturar `db push` com `migrate dev` no mesmo banco costuma resultar em drift.
+
+Para reset controlado em desenvolvimento:
+
+```bash
+npx prisma migrate reset
+```
+
+Apaga tudo, reaplica todas as migrations e roda o seed. Excelente para validar que o histórico funciona do zero.
+
+## Drift e conflitos
+
+**Drift** é quando o banco não corresponde ao histórico de migrations — normalmente porque alguém rodou SQL manual ou um `db push`. O Prisma detecta comparando com a *shadow database*, um banco temporário que ele cria e destrói para simular as migrations.
+
+Como resolver, em ordem de preferência:
+
+1. Em desenvolvimento: `npx prisma migrate reset`. Rápido e limpo.
+2. Se a mudança manual deve ser preservada: rode `npx prisma db pull` para trazer o estado real ao schema, depois gere uma migration com `--create-only` vazia.
+3. Se uma migration falhou no meio:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260112093000_nome
+# ou, se o SQL já foi aplicado à mão:
+npx prisma migrate resolve --applied 20260112093000_nome
+```
+
+**Conflito de Git** entre migrations: duas pessoas criaram migrations em paralelo. Como cada uma vive em uma pasta com timestamp próprio, o conflito raro acontece só no `migration_lock.toml`. Se as migrations mexem na mesma tabela, o mais seguro é: quem fez merge depois apaga sua migration local, dá `git pull`, roda `migrate reset` e recria com `migrate dev`.
+
+## Workflow típico de desenvolvimento
+
+1. `git pull` e `npm ci`.
+2. `npx prisma migrate dev` (aplica o que os colegas criaram).
+3. Edite o `schema.prisma` com a sua mudança.
+4. `npx prisma migrate dev --name descricao_curta`.
+5. Ajuste o código TypeScript — o cliente já está regenerado.
+6. Rode os testes: `npm run test`.
+7. Comite **schema + pasta de migration juntos**. Nunca separados.
+8. Na CI: `prisma migrate deploy` contra o banco de testes.
+9. No deploy: `prisma migrate deploy` antes de subir a nova versão da aplicação.
+
+## Seed
+
+O seed popula dados iniciais — módulos, lições, quizzes:
+
+```ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL as string,
+});
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  await prisma.modulo.upsert({
+    where: { slug: "prisma" },
+    update: { titulo: "Prisma ORM" },
+    create: { slug: "prisma", titulo: "Prisma ORM", ordem: 8 },
+  });
+}
+
+main().finally(() => prisma.$disconnect());
+```
+
+Use `upsert` em vez de `create`: assim o seed é **idempotente** e pode rodar várias vezes sem explodir com violação de unicidade.
+
+## Deploy sem downtime: migrations expand/contract
+
+Ao renomear ou remover colunas em um sistema no ar, faça em duas entregas:
+
+1. **Expand**: adiciona a coluna nova, o código escreve nas duas.
+2. **Contract**: depois que tudo lê a nova, uma segunda migration remove a antiga.
+
+Assim nenhuma versão da aplicação encontra um banco incompatível durante o rollout.
+
+## Por isso importa
+
+Migrations são o que transforma o banco de um artefato manual e frágil em código revisável. Elas permitem que uma pessoa nova clone o projeto e tenha o banco pronto em um comando, que a CI rode com dados limpos e que produção seja atualizada de forma previsível — com registro de quem mudou o quê e quando. Times que ignoram isso acabam mantendo um documento no Notion com "SQL para rodar antes do deploy", e é sempre alguém às 2h da manhã que descobre que esqueceram um passo.
+
+## Quiz
+
+O quiz explora a diferença central entre `migrate dev` e `migrate deploy`, quando `db push` é aceitável e o que exatamente `migrate dev` faz além de aplicar SQL.
+
+Revise também o conceito de drift, o papel da shadow database, por que migrations aplicadas são imutáveis e por que seeds devem usar `upsert` para serem idempotentes.

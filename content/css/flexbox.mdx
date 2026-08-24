@@ -1,0 +1,179 @@
+# Flexbox na prática
+
+**Flexbox** (Flexible Box Layout) é um modelo de layout unidimensional do CSS, criado para distribuir espaço e alinhar itens dentro de um contêiner, mesmo quando seus tamanhos são desconhecidos ou dinâmicos. Ele resolve de forma nativa o que antes exigia hacks com `float` e `display: inline-block`.
+
+## O contêiner e os itens
+
+Você precisa de dois níveis: o **contêiner flex** (onde você liga o modo) e seus **itens filhos diretos** (que se tornam flexíveis).
+
+```css
+.container {
+  display: flex;     /* ativa o flexbox */
+}
+```
+
+A partir daí, todos os filhos diretos do `.container` viram itens flex e deixam de se comportar como blocos empilhados.
+
+## Eixo principal e cruzado
+
+Flexbox trabalha com dois eixos:
+
+- **Eixo principal**: definido por `flex-direction` (linha, por padrão).
+- **Eixo cruzado**: perpendicular ao principal.
+
+Quase toda propriedade se refere a um desses eixos, então fixe esse conceito.
+
+## Direção e quebra
+
+```css
+.container {
+  display: flex;
+  flex-direction: row;        /* padrão: horizontal */
+  /* flex-direction: column;  vertical */
+  flex-wrap: wrap;            /* permite quebrar para a linha seguinte */
+}
+```
+
+Sem `flex-wrap: wrap`, os itens tentam caber numa linha só e podem encolher demais.
+
+## Distribuição no eixo principal: justify-content
+
+Controla o espaço *entre* e *ao redor* dos itens:
+
+```css
+.container {
+  justify-content: flex-start;   /* padrão: à esquerda */
+  justify-content: center;       /* centralizado */
+  justify-content: space-between;/* espaço igual entre itens */
+  justify-content: space-around; /* espaço nas pontas também */
+  justify-content: space-evenly; /* espaço totalmente uniforme */
+}
+```
+
+## Alinhamento no eixo cruzado: align-items
+
+```css
+.container {
+  align-items: stretch;     /* padrão: itens esticam na altura */
+  align-items: flex-start;  /* topo */
+  align-items: center;      /* verticalmente centralizado */
+  align-items: baseline;    /* alinhado pela linha de texto */
+}
+```
+
+## Espaçamento entre itens: gap
+
+A forma moderna e limpa de separar itens, sem margin hacks:
+
+```css
+.container {
+  display: flex;
+  gap: 16px;        /* espaço igual em ambos os eixos */
+  /* gap: 16px 24px;  linha coluna */
+}
+```
+
+## Crescer, encolher e base: as propriedades dos itens
+
+```css
+.item {
+  flex-grow: 1;     /* quanto o item cresce para ocupar espaço livre (0 = não) */
+  flex-shrink: 1;   /* quanto encolhe se faltar espaço (1 = sim) */
+  flex-basis: 200px;/* tamanho inicial antes de crescer/encolher */
+}
+```
+
+Atalho prático:
+
+```css
+.item {
+  flex: 1 1 200px;  /* grow shrink basis */
+}
+
+.item-fixo {
+  flex: 0 0 auto;   /* não cresce, não encolhe, tamanho natural */
+}
+```
+
+## Sobrescrever o alinhamento de um item: align-self
+
+```css
+.item-destaque {
+  align-self: flex-end;  /* este item vai ao final do eixo cruzado */
+}
+```
+
+## Exemplo 1: barra de navegação
+
+```html
+<nav class="navbar">
+  <span class="logo">Loja</span>
+  <ul class="menu">
+    <li>Home</li>
+    <li>Produtos</li>
+    <li>Contato</li>
+  </ul>
+</nav>
+```
+
+```css
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+}
+
+.menu {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+}
+```
+
+## Exemplo 2: cartões que ocupam espaço igual
+
+```css
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.card {
+  flex: 1 1 240px;   /* cresce, mas com base de 240px */
+}
+```
+
+## Exemplo 3: centralizar qualquer coisa
+
+```css
+.centro {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+```
+
+## Boas práticas
+
+- Use Flexbox para layouts em **uma dimensão** (linha ou coluna).
+- Prefira `gap` a margins para espaçamento entre itens.
+- Evite definir `width` fixa nos itens se quer que `flex-grow` atue.
+- Combine com `min-width`/`min-height` para evitar que itens sumam.
+
+## Armadilhas comuns
+
+- Esperar que Flexbox faça grade bidimensional (use Grid para isso).
+- Esquecer que `margin: auto` em item flex empurra o resto (ótimo para empurrar um item pro lado).
+- Achar que `align-items` alinha no eixo principal (é `justify-content`).
+- Itens com muito conteúdo estourarem o contêiner sem `flex-shrink` controlado.
+
+## Por isso importa
+
+Flexbox é a ferramenta mais usada para alinhar e distribuir componentes do dia a dia — barras, botões, cards, modais. Dominá-lo elimina dezenas de hacks legados e torna o alinhamento trivial, preparando o terreno para o CSS Grid em layouts mais ambiciosos.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença entre `justify-content` e `align-items`, o que significa `flex: 1`, e quando usar Flexbox em vez de Grid.

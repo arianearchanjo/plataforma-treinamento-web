@@ -1,0 +1,221 @@
+# Estado e hooks
+
+**Estado** é qualquer dado de um componente que pode mudar ao longo do tempo e, quando muda, obriga o React a re-renderizar a interface. **Hooks** são funções prefixadas com `use` que permitem "enganchar" recursos do React (estado, efeitos, referências) dentro de componentes de função.
+
+## useState: estado local
+
+`useState` recebe o valor inicial e devolve um par: o valor atual e uma função para atualizá-lo.
+
+```jsx
+import { useState } from "react";
+
+function Contador() {
+  const [contagem, setContagem] = useState(0);
+
+  return (
+    <button onClick={() => setContagem(contagem + 1)}>
+      Clicado {contagem} vezes
+    </button>
+  );
+}
+```
+
+### Imutabilidade
+
+No React você nunca muta o estado diretamente. Para arrays e objetos, crie uma nova referência:
+
+```jsx
+const [tarefas, setTarefas] = useState([]);
+
+// Errado: muta o array existente
+tarefas.push("nova");
+
+// Certo: cria novo array
+setTarefas([...tarefas, "nova"]);
+
+// Para objetos:
+setUsuario({ ...usuario, nome: "Ana" });
+```
+
+### Atualização funcional
+
+Quando o próximo valor depende do anterior, passe uma função. Isso evita bugs em atualizações em lote ou chamadas seguidas.
+
+```jsx
+function Contador() {
+  const [n, setN] = useState(0);
+
+  function incrementar() {
+    // seguro mesmo com múltiplas chamadas no mesmo tick
+    setN((atual) => atual + 1);
+  }
+
+  return <button onClick={incrementar}>{n}</button>;
+}
+```
+
+## useEffect: efeitos colaterais
+
+`useEffect` executa código após a renderização — buscar dados, assinar eventos, timers. Recebe uma função de efeito e um array de dependências.
+
+```jsx
+import { useState, useEffect } from "react";
+
+function Relogio() {
+  const [agora, setAgora] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 1000);
+    return () => clearInterval(id); // cleanup
+  }, []); // roda uma vez (montagem)
+
+  return <p>{agora.toLocaleTimeString()}</p>;
+}
+```
+
+### Dependências
+
+O array decide quando o efeito re roda:
+
+- `[]`: apenas na montagem.
+- `[prop]`: quando `prop` mudar.
+- sem array: a cada render (evite, causa loops).
+
+### Cleanup
+
+A função devolvida pelo efeito é o **cleanup**, executado antes de reexecutar o efeito ou na desmontagem. Essencial para evitar vazamentos (listeners, intervals, subscriptions).
+
+```jsx
+useEffect(() => {
+  function aoRedimensionar() {
+    console.log(window.innerWidth);
+  }
+  window.addEventListener("resize", aoRedimensionar);
+  return () => window.removeEventListener("resize", aoRedimensionar);
+}, []);
+```
+
+## useRef: referências mutáveis
+
+`useRef` guarda um valor que persiste entre renders sem causar re-render ao mudar. Ótimo para referenciar nós do DOM ou valores mutáveis.
+
+```jsx
+import { useRef, useEffect } from "react";
+
+function CampoAutofoco() {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return <input ref={inputRef} placeholder="Digite algo" />;
+}
+```
+
+## Regras dos hooks
+
+Hooks só funcionam corretamente se seguidas duas regras:
+
+1. **Chame hooks no topo** do componente, nunca dentro de `if`, loops ou funções aninhadas.
+2. **Chame hooks apenas em componentes React ou em outros hooks customizados.**
+
+```jsx
+function Exemplo() {
+  const [aberto, setAberto] = useState(false); // topo, incondicional
+  const ref = useRef(null);
+
+  // if (aberto) { useState(...) } // ERRADO: hook condicional
+  return null;
+}
+```
+
+Essas regras existem porque o React associa o estado à ordem de chamada dos hooks em cada render.
+
+## Por que o estado é isolado por instância
+
+Cada vez que você usa `<Contador />` em dois lugares, cada instância tem seu próprio estado independente. O React mantém uma fila de estados por componente na árvore.
+
+```jsx
+function App() {
+  return (
+    <>
+      <Contador /> {/* estado próprio: 0 */}
+      <Contador /> {/* estado próprio: 0, independente do outro */}
+    </>
+  );
+}
+```
+
+Isso garante previsibilidade: componentes são reutilizáveis sem compartilhar acidentalmente dados.
+
+## Criando um hook customizado
+
+Quando a lógica de estado se repete, extraia para um hook próprio (sempre começando com `use`):
+
+```jsx
+function useToggle(inicial = false) {
+  const [ligado, setLigado] = useState(inicial);
+  const alternar = () => setLigado((v) => !v);
+  return [ligado, alternar];
+}
+
+function App() {
+  const [visivel, alternar] = useToggle();
+  return <button onClick={alternar}>{visivel ? "Ocultar" : "Mostrar"}</button>;
+}
+```
+
+## Depurando hooks
+
+Quando o estado não atualiza como esperado, verifique: (1) se você mutou o estado em vez de criar novo valor; (2) se usou atualização funcional quando depende do valor anterior; (3) se as dependências do `useEffect` estão completas. O React DevTools mostra o valor atual de cada hook por componente.
+
+```jsx
+function Exemplo() {
+  const [itens, setItens] = useState([]);
+  // erro comum: setItens(itens.push("x")) retorna number
+  function adicionar() {
+    setItens((prev) => [...prev, "x"]); // correto
+  }
+  return <button onClick={adicionar}>add</button>;
+}
+```
+
+## Estado em múltiplos componentes
+
+Cada instância de um componente tem estado independente. Para compartilhar estado entre componentes irmãos, eleve o estado para o ancestral comum ("lifting state up") ou use um estado global (como Jotai, visto em outro módulo).
+
+```jsx
+function Pai() {
+  const [valor, setValor] = useState(0);
+  return (
+    <>
+      <FilhoA valor={valor} />
+      <FilhoB aoMudar={setValor} />
+    </>
+  );
+}
+```
+
+## Boas práticas
+
+- Use atualização funcional quando o novo estado depende do anterior.
+- Trate arrays/objetos de estado como imutáveis.
+- Liste todas as dependências do `useEffect` (ou use `eslint-plugin-react-hooks`).
+- Faça cleanup de tudo que o efeito criou.
+- Extraia lógica repetida em hooks customizados.
+
+## Armadilhas comuns
+
+- Mutar estado diretamente e surpreender-se com a UI não atualizando.
+- Esquecer dependências no `useEffect` e obter dados obsoletos ou loops.
+- Chamar hooks condicionalmente, quebrando a ordem.
+- Usar `useRef` pensando que ele re-renderiza a tela (ele não).
+
+## Por isso importa
+
+Estado e hooks são o coração da interatividade em React. Entender a imutabilidade, a atualização funcional, o ciclo de efeitos com cleanup e a regra de chamar hooks no topo é o que permite construir componentes corretos e livres de vazamentos — e é a base para as novidades do React 19 que veremos a seguir.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: imutabilidade de estado, atualização funcional com `useState`, o papel das dependências e do cleanup no `useEffect`, e as regras dos hooks.

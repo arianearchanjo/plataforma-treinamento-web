@@ -1,0 +1,216 @@
+# Introdução ao Next.js
+
+**Next.js** é um framework full-stack baseado em React que adiciona roteamento, renderização no servidor, otimização de imagens, API routes e muito mais, sem exigir que você monte essas peças manualmente. Ele é o padrão da DevTrilha justamente porque encapsula as boas práticas de React 19 e as torna produtivas desde o primeiro comando.
+
+## O que é Next.js
+
+Enquanto o React descreve componentes, o Next.js organiza uma aplicação completa em torno deles. Ele cuida de:
+
+- **Roteamento baseado em arquivos** (App Router).
+- **Estratégias de renderização**: SSR, SSG, ISR e Client Components.
+- **API Routes / Route Handlers** para backend no mesmo projeto.
+- **Otimizações automáticas**: imagens, fontes, código splitting.
+
+```tsx
+// app/page.tsx — já é uma rota em "/"
+export default function Pagina() {
+  return <h1>Minha app Next.js</h1>;
+}
+```
+
+## Por que usar Next.js
+
+- **Routing sem configuração**: criar uma pasta cria uma rota.
+- **SSR/SSG de graça**: melhora SEO e performance de primeira carga.
+- **API routes**: backend (Route Handlers) no mesmo repositório.
+- **Imagens otimizadas** com o componente `next/image`.
+- **Full-stack coeso**: do banco (Prisma) à UI em um só projeto.
+
+## App Router vs Pages Router
+
+O **App Router** (`app/`) é o padrão moderno, traz Server Components por padrão e suporte nativo a React 19. O **Pages Router** (`pages/`) é legado, mas ainda suportado. Neste curso usamos exclusivamente o App Router.
+
+| Aspecto | Pages Router | App Router |
+| --- | --- | --- |
+| Pasta | `pages/` | `app/` |
+| Componentes | sempre cliente | Server por padrão |
+| Layouts | `_app.tsx` | `layout.tsx` aninhados |
+| Dados | `getServerSideProps` | fetch async direto |
+
+## Criando o projeto
+
+```bash
+npx create-next-app@latest minha-app --ts --app --eslint --tailwind --src-dir
+cd minha-app
+npm run dev
+```
+
+Isso gera um projeto com TypeScript, Tailwind, ESLint e a estrutura `app/` dentro de `src/`.
+
+## Estrutura de pastas
+
+O coração do App Router é a pasta `app/`:
+
+```text
+src/app/
+  layout.tsx     # layout raiz, envolve todas as páginas
+  page.tsx       # rota "/" 
+  globals.css    # estilos globais
+```
+
+### `app/layout.tsx`
+
+O layout raiz recebe `children` e define a estrutura HTML (html, body). Ele persiste entre navegações, preservando estado e evitando recarregar tudo.
+
+```tsx
+// src/app/layout.tsx
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+### `app/page.tsx`
+
+`page.tsx` vira a rota correspondente à pasta. `app/page.tsx` é a home (`/`).
+
+```tsx
+// src/app/page.tsx
+export default function Home() {
+  return (
+    <main>
+      <h1>Bem-vindo</h1>
+    </main>
+  );
+}
+```
+
+## Arquivos especiais
+
+O App Router reconhece nomes reservados:
+
+- `layout.tsx`: layout compartilhado da pasta e subpastas.
+- `page.tsx`: UI acessível via URL.
+- `loading.tsx`: fallback de Suspense durante carregamento.
+- `error.tsx`: fronteira de erro (precisa de `"use client"`).
+- `not-found.tsx`: UI para rotas inexistentes.
+- `route.ts`: Route Handler (backend).
+- `proxy.ts`: proteção de rotas (Next.js 16, veremos adiante).
+
+## Desenvolvimento
+
+```bash
+npm run dev      # servidor de desenvolvimento em http://localhost:3000
+npm run build    # build de produção
+npm run start    # serve o build
+npm run lint     # Biome/ESLint
+```
+
+Mudanças em arquivos dentro de `app/` refletem instantaneamente graças ao Fast Refresh.
+
+## Um exemplo completo
+
+```tsx
+// src/app/sobre/page.tsx
+export default function Sobre() {
+  return (
+    <main>
+      <h1>Sobre a DevTrilha</h1>
+      <p>Trilhas de front-end em português.</p>
+    </main>
+  );
+}
+```
+
+Acessar `/sobre` renderiza esse componente dentro do `layout.tsx`.
+
+## Rotas estáticas vs dinâmicas
+
+No Next.js você pode pré-renderizar páginas em build time (estático) ou gerá-las por requisição (dinâmico). O App Router decide automaticamente com base no uso de dados e nas opções de cache, mas você pode orientar com `generateStaticParams` e `dynamic`.
+
+```tsx
+// Página estática: lista conhecida em build time
+export async function generateStaticParams() {
+  return [{ slug: "react-19" }, { slug: "next-16" }];
+}
+```
+
+## Server vs Client no Next
+
+Por padrão, componentes em `app/` são Server Components (rodam no servidor, acessam banco). Quando precisar de interatividade (estado, eventos), marque o arquivo com `"use client"`. Essa separação é a base do modelo híbrido do Next.js.
+
+```tsx
+"use client";
+import { useState } from "react";
+
+export default function Busca() {
+  const [termo, setTermo] = useState("");
+  return <input value={termo} onChange={(e) => setTermo(e.target.value)} />;
+}
+```
+
+## O papel do arquivo de layout raiz
+
+O `layout.tsx` raiz é obrigatório e define o `<html>` e `<body>`. Por isso ele não pode ser um Client Component: ele envolve toda a árvore e precisa rodar no servidor para montar a casca da página.
+
+```tsx
+export const metadata = {
+  title: "DevTrilha",
+  description: "Trilhas de front-end em português",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+## O ecossistema da DevTrilha
+
+Nosso projeto usa Next.js 16 com TypeScript, Tailwind 4, Prisma 7 e Better-Auth. O Next.js é o "celeiro" que une tudo: o Prisma acessa o banco em Server Components, o Better-Auth gerencia sessões, e o Tailwind estiliza os componentes React — tudo em um só repositório.
+
+## Organização de pastas dentro de `app/`
+
+Uma convenção saudável é separar rotas públicas de áreas administrativas e usar pastas com `(` grupos de rota `)` quando quiser compartilhar layout sem afetar a URL.
+
+```text
+app/
+  (site)/
+    layout.tsx
+    page.tsx
+  (admin)/
+    layout.tsx
+    dashboard/page.tsx
+  api/
+    route.ts
+```
+
+Os parênteses criam um grupo de roteamento que não aparece na URL, mas permite layouts distintos (`/dashboard` em vez de `/admin/dashboard`).
+
+## Boas práticas
+
+- Mantenha Server Components como padrão; marque `"use client"` só quando precisar de interatividade.
+- Coloque layouts compartilhados em `layout.tsx` para evitar duplicação.
+- Use `loading.tsx` e `error.tsx` para UX robusta.
+- Aproveite o `src/` para separar código de app e config.
+
+## Armadilhas comuns
+
+- Esperar que `page.tsx` precise de configuração de rota manual (ela é automática).
+- Esquecer que, sem `"use client"`, hooks como `useState` não funcionam.
+- Misturar `pages/` e `app/` no mesmo projeto sem necessidade.
+- Tentar exportar múltiplos componentes de `page.tsx` como rota (apenas o default vira página).
+
+## Por isso importa
+
+Next.js é o framework que une React 19, roteamento, SSR e backend na DevTrilha. Entender sua estrutura de pastas e os arquivos especiais é o que torna possível construir aplicações completas — do layout à API — sem sair do ecossistema que você já está aprendendo.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que o Next.js adiciona sobre o React puro, a diferença entre App Router e Pages Router, o papel de `layout.tsx` e `page.tsx`, e os comandos de desenvolvimento.

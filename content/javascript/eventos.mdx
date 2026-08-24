@@ -1,0 +1,197 @@
+# Eventos e interatividade
+
+**Eventos** são sinais emitidos pelo navegador quando algo acontece — um clique,
+um envio de formulário, o carregamento da página, o movimento do mouse — e a
+interatividade nasce quando nosso JavaScript "ouve" esses sinais e responde.
+Compreender como registrar ouvintes, o ciclo de propagação e a delegação de
+eventos é o que separa páginas reativas de páginas inertes.
+
+## Ouvindo eventos com addEventListener
+
+A forma moderna e recomendada de reagir a eventos é `addEventListener`.
+
+```js
+const botao = document.querySelector("#enviar");
+
+botao.addEventListener("click", (event) => {
+  console.log("Clicou!", event);
+});
+```
+
+Vantagens sobre o atributo HTML `onclick`:
+
+- Permite **vários** ouvintes no mesmo elemento.
+- Separa comportamento (JS) de marcação (HTML).
+- Permite remover com `removeEventListener`.
+
+Você também pode usar opções como `{ once: true }` (executa uma vez) e
+`{ capture: true }` (captura, veremos adiante).
+
+```js
+botao.addEventListener("click", handler, { once: true });
+```
+
+## Tipos de eventos comuns
+
+| Categoria      | Exemplos                                       |
+| -------------- | ---------------------------------------------- |
+| Mouse          | `click`, `dblclick`, `mouseover`, `mouseout`   |
+| Teclado        | `keydown`, `keyup`, `keypress`                 |
+| Formulário     | `submit`, `input`, `change`, `focus`, `blur`   |
+| Documento      | `DOMContentLoaded`, `load`, `scroll`, `resize` |
+
+```js
+// Detecta envio de formulário
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  // lógica de validação/envio
+});
+
+// Reage a digitação em tempo real
+input.addEventListener("input", (e) => {
+  console.log(e.target.value);
+});
+```
+
+`DOMContentLoaded` garante que o HTML foi parseado antes de rodar o JS — útil
+quando você não usa `defer`.
+
+## O objeto `event`
+
+O argumento recebido pelo handler traz informações e controles do evento.
+
+```js
+elemento.addEventListener("click", (event) => {
+  console.log(event.type);      // "click"
+  console.log(event.target);    // quem disparou (podem ser filhos)
+  console.log(event.currentTarget); // quem tem o ouvinte
+  console.log(event.clientX, event.clientY); // posição do mouse
+});
+```
+
+`event.target` é o elemento mais profundo que recebeu o evento; `currentTarget`
+é o elemento ao qual o listener está anexado.
+
+## preventDefault e stopPropagation
+
+### preventDefault
+
+Cancela o comportamento padrão do navegador (envio de form, navegação de link).
+
+```js
+document.querySelector("a").addEventListener("click", (e) => {
+  e.preventDefault(); // impede o redirecionamento
+  // faz algo customizado
+});
+```
+
+### stopPropagation
+
+Impede que o evento continue se propagando para outros ouvintes (pai/filho).
+
+```js
+filho.addEventListener("click", (e) => {
+  e.stopPropagation(); // o pai não recebe este clique
+});
+```
+
+Use com cuidado: parar a propagação pode quebrar a delegação de eventos ou
+outros ouvintes legítimos.
+
+## Propagação: bubbling e capturing
+
+Eventos percorrem o DOM em três fases:
+
+1. **Capturing** (da raiz até o alvo).
+2. **Target** (no próprio elemento alvo).
+3. **Bubbling** (do alvo de volta à raiz).
+
+Por padrão, `addEventListener` escuta na fase de **bubbling** — ou seja, um
+evento disparado num filho "borbulha" para os pais.
+
+```html
+<div id="pai">
+  <button id="filho">Clique</button>
+</div>
+```
+
+```js
+document.getElementById("pai").addEventListener("click", () => {
+  console.log("pai recebeu (bubbling)");
+});
+// Clicar no botão dispara também o handler do pai.
+```
+
+Para escutar na fase de captura, passe `true` (ou `{ capture: true }`) como
+terceiro argumento.
+
+## Delegação de eventos
+
+Em vez de anexar um ouvinte a **cada** elemento (custoso e frágil com listas
+dinâmicas), anexe **um** ouvinte ao elemento pai e use `event.target` para
+descobrir quem foi clicado.
+
+```js
+const lista = document.querySelector("#lista");
+
+lista.addEventListener("click", (e) => {
+  const item = e.target.closest("li");
+  if (!item) return; // clique fora de um <li>
+  console.log("Item clicado:", item.textContent);
+});
+```
+
+Benefícios:
+
+- Funciona para itens adicionados **depois** (dinâmicos).
+- Menos ouvintes = melhor performance.
+- Código mais simples para listas grandes.
+
+## Exemplo prático: lista com remoção
+
+```html
+<ul id="tarefas">
+  <li>Tarefa 1 <button class="remover">x</button></li>
+  <li>Tarefa 2 <button class="remover">x</button></li>
+</ul>
+
+<script>
+  const lista = document.getElementById("tarefas");
+
+  lista.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("remover")) return;
+    const li = e.target.closest("li");
+    li.remove();
+  });
+</script>
+```
+
+## Boas práticas
+
+- Prefira `addEventListener` a atributos `on*`.
+- Use delegação de eventos para listas e conteúdo dinâmico.
+- Use `event.target`/`currentTarget` corretamente.
+- Remova ouvintes (`removeEventListener`) quando não forem mais necessários para
+  evitar vazamento de memória em SPAs.
+- Para formulários, escute `submit` no form, não `click` no botão.
+
+## Armadilhas comuns
+
+- Esquecer `preventDefault` em `submit`, causando recarregamento da página.
+- Usar `this` solto em arrow function (use `event.currentTarget`).
+- Ancorar lógica em `click` do botão em vez de `submit` do formulário.
+- `stopPropagation` excessivo quebrando delegação ou outros handlers.
+
+## Por isso importa
+
+A web é interativa por definição, e eventos são a linguagem dessa interação:
+toda reação a um clique, tecla ou rolagem passa por eles. Entender
+propagação, `preventDefault` e, principalmente, a delegação de eventos torna seu
+código mais eficiente e robusto — especialmente com conteúdo dinâmico — e é
+base para qualquer biblioteca de UI que você usar no futuro.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: uso de
+`addEventListener`, o objeto `event`, `preventDefault` vs `stopPropagation`,
+fases de bubbling/capturing e a delegação de eventos.

@@ -1,0 +1,213 @@
+# Arrays e objetos
+
+**Arrays** são listas ordenadas de valores acessadas por índice, e **objetos**
+são coleções de pares chave-valor que representam entidades com propriedades.
+Juntos, eles são as estruturas de dados mais usadas em JavaScript — quase todo
+dado real (uma lista de usuários, um produto, uma resposta de API) chega como
+array, objeto ou uma combinação dos dois.
+
+## Criando arrays
+
+```js
+const frutas = ["maçã", "banana", "uva"];
+const vazia = [];
+const misto = [1, "dois", true, { x: 1 }];
+
+// Acesso por índice (começa em 0)
+console.log(frutas[0]);   // maçã
+console.log(frutas.length); // 3
+```
+
+Arrays são objetos por baixo dos panos, mas têm semântica de lista e métodos
+próprios. Nunca use `typeof` para detectar array — use `Array.isArray`.
+
+```js
+Array.isArray(frutas); // true
+```
+
+## Criando objetos
+
+```js
+const usuario = {
+  nome: "Ana",
+  idade: 30,
+  ativo: true,
+  endereco: { cidade: "SP", cep: "01000-000" },
+};
+
+// Acesso a propriedades
+console.log(usuario.nome);        // Ana
+console.log(usuario["idade"]);    // 30 (notação de colchetes)
+console.log(usuario.endereco.cidade); // SP
+```
+
+A notação de colchetes é útil quando a chave é dinâmica:
+
+```js
+const campo = "nome";
+console.log(usuario[campo]); // Ana
+```
+
+## Métodos essenciais de array
+
+### map — transforma cada item
+
+```js
+const numeros = [1, 2, 3];
+const dobrados = numeros.map((n) => n * 2);
+console.log(dobrados); // [2, 4, 6]
+```
+
+`map` devolve **sempre um novo array** com o mesmo tamanho.
+
+### filter — seleciona itens
+
+```js
+const idades = [12, 18, 25, 15];
+const maiores = idades.filter((i) => i >= 18);
+console.log(maiores); // [18, 25]
+```
+
+### reduce — acumula em um valor
+
+```js
+const valores = [10, 20, 30];
+const total = valores.reduce((acc, v) => acc + v, 0);
+console.log(total); // 60
+```
+
+`reduce` é versátil: contar, agrupar, somar, planar estruturas. O segundo
+argumento (`0`) é o valor inicial do acumulador.
+
+### find e findIndex
+
+```js
+const produtos = [
+  { id: 1, nome: "Teclado" },
+  { id: 2, nome: "Mouse" },
+];
+
+const mouse = produtos.find((p) => p.nome === "Mouse");
+console.log(mouse); // { id: 2, nome: "Mouse" }
+```
+
+### sort — ordena (com cuidado)
+
+`sort` ordena **como string por padrão** e **muta** o array original.
+
+```js
+const nums = [10, 2, 30, 4];
+nums.sort((a, b) => a - b); // [2, 4, 10, 30] (cópia ordenada de números)
+```
+
+Para não mutar o original, faça ` [...nums].sort(...)`.
+
+### Outros úteis
+
+```js
+[1, 2, 3].includes(2);      // true
+[1, 2, 3].some((n) => n > 2); // true (algum)
+[1, 2, 3].every((n) => n > 0); // true (todos)
+[1, 2, 3].forEach((n) => console.log(n)); // itera, sem retorno
+```
+
+## Spread e rest
+
+O operador `...` "espalha" elementos. Em array serve para copiar e concatenar.
+
+```js
+const a = [1, 2];
+const b = [3, 4];
+const c = [...a, ...b]; // [1, 2, 3, 4] (cópia rasa, não muta a/b)
+
+const copia = [...a];   // cópia de array
+```
+
+Como `rest` em desestruturação de array, captura o "resto":
+
+```js
+const [primeiro, ...resto] = [10, 20, 30];
+console.log(primeiro); // 10
+console.log(resto);    // [20, 30]
+```
+
+## Desestruturação
+
+Extrai valores de arrays/objetos diretamente em variáveis.
+
+```js
+const [x, y] = [1, 2];
+console.log(x, y); // 1 2
+
+const { nome, idade } = usuario;
+console.log(nome, idade); // Ana 30
+
+// Renomeando e com padrão
+const { nome: nomeUsuario, cargo = "dev" } = usuario;
+```
+
+Desestruturação encadeada também funciona para objetos aninhados.
+
+## JSON (JavaScript Object Notation)
+
+JSON é o formato padrão de troca de dados na web. Ele é texto, não objeto vivo.
+
+```js
+const json = '{"nome":"Ana","idade":30}';
+
+// texto -> objeto
+const obj = JSON.parse(json);
+console.log(obj.nome); // Ana
+
+// objeto -> texto
+const texto = JSON.stringify(obj);
+console.log(texto); // {"nome":"Ana","idade":30}
+```
+
+Regras: chaves e strings devem usar **aspas duplas**; não aceita funções,
+`undefined` ou `Date` diretamente (vira string). Em APIs, quase sempre você
+recebe JSON e o converte com `JSON.parse`.
+
+## Imutabilidade na prática
+
+Métodos como `map`, `filter` e o spread criam novos valores em vez de alterar os
+originais. Isso evita bugs em estado compartilhado (essencial em frameworks
+reativos).
+
+```js
+const original = [1, 2, 3];
+const novo = original.map((n) => n + 1); // original continua [1, 2, 3]
+```
+
+Para objetos, use o padrão de "clone com mudança":
+
+```js
+const atualizado = { ...usuario, idade: 31 }; // novo objeto
+```
+
+## Boas práticas
+
+- Prefira `map`/`filter`/`reduce` a loops `for` quando fizer sentido.
+- Nunca mutê arrays/objetos compartilhados sem querer — use cópias.
+- Use `const` para arrays/objetos e mude suas propriedades internamente.
+- Nomeie arrays no plural (`usuarios`, `produtos`).
+
+## Armadilhas comuns
+
+- `sort()` sem função de comparação ordena como string ("10" antes de "2").
+- Achar que `const` impede mudar propriedades de objeto/array.
+- Usar `for...in` em arrays (ele itera chaves, inclusive prototipadas).
+- Esquecer que `JSON.parse` lança erro se o texto for inválido (use try/catch).
+
+## Por isso importa
+
+Arrays e objetos são o "vocabulário" dos dados em JavaScript: de respostas de
+API a estado de componentes, quase tudo é estruturado assim. Dominar `map`,
+`filter`, `reduce`, desestruturação e JSON torna seu código mais expressivo,
+menos propenso a bugs de mutação e pronto para integrar com qualquer backend.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: criação de
+arrays e objetos, os métodos `map`/`filter`/`reduce`/`find`/`sort`, spread e
+desestruturação e conversão com `JSON.parse`/`JSON.stringify`.

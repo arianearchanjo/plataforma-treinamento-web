@@ -1,0 +1,169 @@
+# Padrões de uso (e quando evitar)
+
+**Conhecer os átomos é o começo; sabê-los organizar e, principalmente, saber
+quando NÃO usar o Jotai é o que evita arquiteturas confusas.** Esta lição
+reúne padrões consagrados e os limites da biblioteca.
+
+## Organização de átomos
+
+Coloque átomos relacionados em um mesmo arquivo (ex.: `atoms/user.ts`) e os
+exporte nomeados. Evite declarar átomos dentro de componentes — isso recria o
+átomo a cada render (veremos o perigo mais abaixo).
+
+```ts
+// atoms/carrinho.ts
+import { atom } from "jotai";
+
+export const itensAtom = atom<string[]>([]);
+export const totalAtom = atom((get) => get(itensAtom).length);
+```
+
+Importar de um módulo centralizado mantém o estado previsível e testável.
+
+## Padrão: split atoms
+
+Quando você tem uma lista de itens, cada um com estado próprio, crie um átomo
+que guarda uma lista de átomos (um "átomo de átomos"):
+
+```ts
+import { atom } from "jotai";
+
+const itemAtom = (id: number) => atom({ id, feito: false });
+
+const listaAtom = atom<ReturnType<typeof itemAtom>[]>([]);
+```
+
+Assim cada item re-renderiza isoladamente, sem puxar a lista inteira. Esse é o
+padrão "split atom", ideal para listas grandes e interativas.
+
+## Padrão: átomo de request (fetch)
+
+Para buscar dados de uma API, combine um átomo de carregamento com um derivado
+de leitura:
+
+```ts
+import { atom } from "jotai";
+
+const dadosAtom = atom<{ status: "idle" | "ok"; valor?: unknown }>({ status: "idle" });
+
+const carregarAtom = atom(null, async (_get, set) => {
+  const res = await fetch("https://api.exemplo.com/dados");
+  const valor = await res.json();
+  set(dadosAtom, { status: "ok", valor });
+});
+```
+
+Esse padrão mantém o estado de busca e o dado num lugar só, pronto para
+componentes consumirem. (Para estado de servidor robusto, porém, veja a seção
+"quando evitar".)
+
+## Padrão: store personalizada
+
+Em testes ou em cenários com múltiplas "instâncias" de estado (ex.: várias
+abas independentes), crie uma store própria com `createStore` e passe via
+`Provider`:
+
+```tsx
+import { createStore, Provider } from "jotai";
+
+const store = createStore();
+
+function App() {
+  return (
+    <Provider store={store}>
+      <MeuConteudo />
+    </Provider>
+  );
+}
+```
+
+Sem `Provider`, o Jotai usa uma store global padrão — suficiente para a maioria
+dos casos.
+
+## Jotai vs Context / Zustand / Redux
+
+- **Context**: bom para tema ou locale (raro mudança). Para estado frequente, o
+  Jotai vence em re-render granular.
+- **Zustand**: também enxuto, baseado em store com seletores. Escolha-o se
+  preferir um modelo de store única com `select`. Jotai brilha quando o estado
+  é naturalmente fragmentado em átomos.
+- **Redux**: indicado para fluxos complexos, debugging com DevTools e time
+  grande. Para a maioria das SPAs, Jotai é menos verboso.
+
+Não existe vencedor absoluto: a escolha depende do formato do seu estado e da
+equipe.
+
+## Quando NÃO usar o Jotai
+
+Evite o Jotai nestes casos:
+
+- **Estado local simples de um formulário**: um `useState` no componente já
+  basta. Não crie átomos para dados que não saem daquele formulário.
+- **Server state (dados de API)**: use React Query (TanStack Query). Ele
+  resolve cache, revalidação, paginação e "stale" melhor que átomos manuais.
+  Guarde no Jotai apenas o que é cliente de fato.
+- **Estado efêmero de UI trivial** (ex.: abrir/fechar um menu): `useState` ou
+  Context local costumam ser mais diretos.
+
+## Armadilha: átomos recriados a cada render
+
+Nunca crie átomos dentro do corpo do componente:
+
+```tsx
+function Ruim() {
+  const meuAtom = atom(0); // recriado toda renderização!
+  const [v] = useAtom(meuAtom);
+  return <p>{v}</p>;
+}
+```
+
+Cada render cria um átomo novo, perdendo o estado anterior e vazando memória.
+Átomos devem ser estáveis: declarados no módulo (fora do componente). Se
+precisar de instâncias por item, use o padrão split atom.
+
+## Armadilha: átomos derivados caros
+
+Um átomo derivado roda seu cálculo sempre que as dependências mudam. Se o
+cálculo for pesado, memoize dentro dele ou repense a modelagem para evitar
+recomputar em cascata.
+
+## Exemplo completo de organização
+
+Um módulo de átomos típico isola estado e derivações, exportando apenas o que
+os componentes precisam consumir:
+
+```ts
+// atoms/carrinho.ts
+import { atom } from "jotai";
+
+export const itensAtom = atom<string[]>([]);
+export const descontoAtom = atom(0);
+
+export const totalAtom = atom(
+  (get) => get(itensAtom).length - get(descontoAtom)
+);
+
+export const limparAtom = atom(null, (_get, set) => {
+  set(itensAtom, []);
+  set(descontoAtom, 0);
+});
+```
+
+Componentes importam apenas o que usam (`useAtomValue(totalAtom)`,
+`useSetAtom(limparAtom)`), mantendo re-renders e responsabilidades bem
+definidos. Centralizar átomos assim facilita testes e evita definições
+espalhadas.
+
+## Por isso importa
+
+Saber os padrões certos e, principalmente, os limites do Jotai é o que impede
+código espaguete. Estado mal dividido ou átomos instáveis causam bugs subtis e
+vazamentos. Reconhecer quando `useState` ou React Query são melhores do que
+Jotai é sinal de maturidade — e faz toda a diferença na manutenção a longo prazo.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: padrões
+como split atoms e átomo de fetch, como e por que criar uma store
+personalizada, a comparação Jotai vs Context/Zustand/Redux, e as armadilhas de
+criar átomos dentro de componentes e de usar Jotai para server state.

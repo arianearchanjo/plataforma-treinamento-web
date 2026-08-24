@@ -1,0 +1,263 @@
+# Modelando dados no schema
+
+**O `schema.prisma` é a fonte da verdade do seu banco. Tudo — tabelas, colunas, índices, relações e os tipos TypeScript do cliente — nasce desse arquivo. Modelar bem aqui economiza semanas de retrabalho depois.**
+
+Nesta lição vamos dissecar o schema: os três blocos principais, os tipos escalares, os atributos (`@id`, `@default`, `@unique`), enums e as três formas de relação (1:N, N:N, 1:1).
+
+## Anatomia do arquivo
+
+```prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id    String @id @default(uuid())
+  email String @unique
+}
+```
+
+- **`datasource`**: qual banco e como chegar nele. `provider = "postgresql"` e a URL vindo de variável de ambiente via `env()`.
+- **`generator`**: o que gerar a partir do schema. Usamos o gerador `prisma-client` (o moderno, ESM-friendly) com saída dentro de `src/generated/prisma`.
+- **`model`**: cada model vira uma tabela e um tipo TypeScript.
+
+Convenção da DevTrilha: models em `PascalCase` singular (`Usuario`, `Licao`), campos em `camelCase`.
+
+## Tipos escalares
+
+| Tipo Prisma | PostgreSQL | Uso típico |
+| --- | --- | --- |
+| `String` | `text` | nomes, e-mails, slugs |
+| `Int` | `integer` | contadores, ordem |
+| `BigInt` | `bigint` | ids externos grandes |
+| `Float` | `double precision` | medidas aproximadas |
+| `Decimal` | `decimal` | dinheiro (nunca `Float`!) |
+| `Boolean` | `boolean` | flags |
+| `DateTime` | `timestamp(3)` | datas e horas |
+| `Json` | `jsonb` | payloads flexíveis |
+| `Bytes` | `bytea` | binários |
+
+Todo campo é obrigatório por padrão. Adicione `?` para torná-lo opcional (nulo no banco) e `[]` para lista:
+
+```prisma
+model Perfil {
+  id        Int      @id @default(autoincrement())
+  bio       String?          // pode ser NULL
+  interesses String[]        // array nativo do Postgres
+  metadados Json?
+}
+```
+
+Você também pode forçar o tipo nativo:
+
+```prisma
+model Produto {
+  preco Decimal @db.Decimal(10, 2)
+  slug  String  @db.VarChar(120)
+}
+```
+
+## Atributos de campo
+
+- **`@id`** — chave primária.
+- **`@default(...)`** — valor padrão. Os mais usados:
+  - `@default(uuid())` — identificador aleatório gerado pelo Prisma;
+  - `@default(autoincrement())` — sequência do Postgres, exige `Int`;
+  - `@default(now())` — timestamp de criação;
+  - `@default(false)`, `@default("rascunho")` — literais.
+- **`@unique`** — índice único. Ótimo para `email` e `slug`.
+- **`@updatedAt`** — o Prisma atualiza o campo em cada `update`.
+- **`@map("nome_no_banco")`** — renomeia a coluna sem mudar o nome no código.
+
+E atributos de bloco, aplicados ao model:
+
+```prisma
+model Matricula {
+  usuarioId String
+  cursoId   String
+  criadoEm  DateTime @default(now())
+
+  @@id([usuarioId, cursoId])        // chave composta
+  @@index([cursoId])                // índice para consultas por curso
+  @@map("matriculas")               // nome da tabela
+}
+```
+
+`uuid()` vs `autoincrement()`: UUID não vaza volume de dados nem permite adivinhar ids na URL, e pode ser gerado no cliente antes do insert. `autoincrement()` gera ids menores e ordenáveis. Para APIs públicas, prefira UUID.
+
+## Enums
+
+```prisma
+enum Papel {
+  ALUNO
+  INSTRUTOR
+  ADMIN
+}
+
+model Usuario {
+  id    String @id @default(uuid())
+  papel Papel  @default(ALUNO)
+}
+```
+
+No Postgres isso cria um tipo enum real, e no TypeScript você recebe uma união literal — `papel: "ALUNO" | "INSTRUTOR" | "ADMIN"`. Comparações erradas viram erro de compilação.
+
+## Relação 1:N
+
+O caso mais comum: um módulo tem várias lições.
+
+```prisma
+model Modulo {
+  id     String @id @default(uuid())
+  titulo String
+  slug   String @unique
+  licoes Licao[]
+}
+
+model Licao {
+  id       String @id @default(uuid())
+  titulo   String
+  slug     String
+  moduloId String
+  modulo   Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@unique([moduloId, slug])
+}
+```
+
+Pontos-chave:
+
+- O lado que guarda a **chave estrangeira** (`Licao.moduloId`) é o lado "muitos".
+- `@relation(fields: [...], references: [...])` liga a FK à coluna referenciada.
+- `Modulo.licoes` é apenas um campo virtual: não existe coluna para ele.
+- `onDelete: Cascade` apaga as lições quando o módulo é removido. Alternativas: `Restrict`, `SetNull` (exige FK opcional), `NoAction`.
+- `@@unique([moduloId, slug])` garante slugs únicos *dentro* do módulo.
+
+## Relação 1:1
+
+```prisma
+model Usuario {
+  id     String  @id @default(uuid())
+  perfil Perfil?
+}
+
+model Perfil {
+  id        String  @id @default(uuid())
+  bio       String?
+  usuarioId String  @unique
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+}
+```
+
+O segredo é o `@unique` na chave estrangeira: é ele que transforma 1:N em 1:1. O lado sem FK precisa ser opcional (`Perfil?`).
+
+## Relação N:N
+
+**Implícita** — o Prisma cria e gerencia a tabela de junção:
+
+```prisma
+model Licao {
+  id    String @id @default(uuid())
+  tags  Tag[]
+}
+
+model Tag {
+  id     String  @id @default(uuid())
+  nome   String  @unique
+  licoes Licao[]
+}
+```
+
+Simples, mas você não pode guardar dados extras na relação. Quando precisar (data de matrícula, progresso, papel), use **N:N explícita** com um model no meio:
+
+```prisma
+model Matricula {
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId String
+  curso     Curso    @relation(fields: [cursoId], references: [id])
+  cursoId   String
+  progresso Int      @default(0)
+  criadoEm  DateTime @default(now())
+
+  @@id([usuarioId, cursoId])
+}
+```
+
+Regra prática: se algum dia a relação vai ter atributo próprio, comece explícita — migrar depois dá trabalho.
+
+## Múltiplas relações entre os mesmos models
+
+Se dois campos apontam para o mesmo model, nomeie as relações:
+
+```prisma
+model Licao {
+  id            String @id @default(uuid())
+  autorId       String
+  autor         Usuario @relation("LicoesEscritas", fields: [autorId], references: [id])
+  revisorId     String?
+  revisor       Usuario? @relation("LicoesRevisadas", fields: [revisorId], references: [id])
+}
+
+model Usuario {
+  id              String  @id @default(uuid())
+  licoesEscritas  Licao[] @relation("LicoesEscritas")
+  licoesRevisadas Licao[] @relation("LicoesRevisadas")
+}
+```
+
+Sem os nomes, o Prisma não consegue decidir qual campo pareia com qual — e a validação falha.
+
+## Como o cliente reflete o schema
+
+Depois de `npx prisma generate`, cada model rende:
+
+- um **tipo** (`Usuario`, `Licao`) com os campos escalares;
+- um **delegate** no cliente (`prisma.usuario`, `prisma.licao`);
+- tipos de argumentos (`Prisma.UsuarioCreateInput`, `Prisma.LicaoWhereInput`).
+
+E as relações só aparecem no resultado quando você pede:
+
+```ts
+const modulo = await prisma.modulo.findUnique({
+  where: { slug: "prisma" },
+  include: { licoes: { orderBy: { slug: "asc" } } },
+});
+
+// modulo?.licoes existe e é Licao[]
+// sem o include, modulo?.licoes nem compila
+```
+
+Para tipar funções que devolvem esse formato, use o helper:
+
+```ts
+import type { Prisma } from "@/generated/prisma/client";
+
+type ModuloComLicoes = Prisma.ModuloGetPayload<{
+  include: { licoes: true };
+}>;
+```
+
+## Boas práticas de modelagem
+
+- **Um significado por campo.** Evite `status` que às vezes é booleano e às vezes texto — use enum.
+- **`Decimal` para dinheiro.** `Float` acumula erro de arredondamento.
+- **`DateTime` em UTC.** Guarde UTC e formate na interface.
+- **Índices onde você filtra.** `@@index` nas colunas usadas em `where` e `orderBy` de listas grandes.
+- **Nomes previsíveis.** `criadoEm`/`atualizadoEm` em todo model economiza reflexão em cada consulta.
+- **Valide o schema** antes de migrar: `npx prisma validate` e `npx prisma format`.
+
+## Por isso importa
+
+O schema é o contrato entre o banco, o backend e a interface. Um campo mal modelado se espalha: aparece em queries, em componentes, em testes e em dados já gravados que ninguém quer migrar. Investir meia hora desenhando relações e enums corretos evita aquele tipo de dívida técnica que só se paga com script de correção em produção — e, de bônus, entrega autocompletar preciso em cada linha do seu código.
+
+## Quiz
+
+Espere perguntas sobre onde vive a chave estrangeira numa relação 1:N, o truque do `@unique` que transforma uma relação em 1:1 e quando escolher N:N explícita em vez de implícita.
+
+Também vale revisar a diferença entre `@default(uuid())` e `@default(autoincrement())`, o efeito de `@map`/`@@map` e por que campos de relação só aparecem no resultado quando você usa `include` ou `select`.

@@ -1,0 +1,352 @@
+﻿# AutenticaÃ§Ã£o por e-mail e senha
+
+**E-mail e senha continua sendo o mÃ©todo mais usado da web â€” e o mais fÃ¡cil de implementar mal. Better-Auth resolve o lado sensÃ­vel (hash, sessÃ£o, cookie) e deixa para vocÃª a parte visÃ­vel: formulÃ¡rios, validaÃ§Ã£o e mensagens de erro.**
+
+Nesta liÃ§Ã£o vamos habilitar o mÃ©todo, construir telas de cadastro e login em React, tratar erros e entender o que acontece com a senha nos bastidores.
+
+## Habilitando o mÃ©todo
+
+No `src/lib/auth.ts`, basta a chave `emailAndPassword`:
+
+```ts
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins,
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
+  emailAndPassword: {
+    enabled: true,
+  },
+});
+```
+
+OpÃ§Ãµes Ãºteis para endurecer as regras:
+
+```ts
+emailAndPassword: {
+  enabled: true,
+  minPasswordLength: 8,          // padrÃ£o: 8
+  maxPasswordLength: 128,
+  autoSignIn: true,              // jÃ¡ autentica apÃ³s o cadastro
+  requireEmailVerification: false,
+}
+```
+
+- **`autoSignIn`** â€” evita pedir que a pessoa faÃ§a login logo depois de se cadastrar.
+- **`requireEmailVerification`** â€” se `true`, o login Ã© bloqueado atÃ© o e-mail ser confirmado. Exige configurar envio de e-mail (`emailVerification.sendVerificationEmail`).
+
+Com isso, os endpoints `POST /api/auth/sign-up/email`, `POST /api/auth/sign-in/email` e `POST /api/auth/sign-out` passam a existir.
+
+## Como a senha Ã© armazenada
+
+A regra nÃºmero um: **senha nunca Ã© gravada em texto puro e nunca Ã© reversÃ­vel**.
+
+Better-Auth aplica, por padrÃ£o, **scrypt** â€” uma funÃ§Ã£o de derivaÃ§Ã£o de chave desenhada para ser lenta e cara em memÃ³ria, o que torna ataques de forÃ§a bruta impraticÃ¡veis. O que vai para o banco, na tabela `account` (campo `password`), Ã© algo como:
+
+```
+<salt>:<hash-derivado>
+```
+
+Dois pontos importantes:
+
+- **Salt aleatÃ³rio por usuÃ¡rio.** Duas pessoas com a senha `senha123` tÃªm hashes diferentes, entÃ£o uma rainbow table nÃ£o serve.
+- **VerificaÃ§Ã£o por recomputaÃ§Ã£o.** No login, o sistema recalcula o hash com o mesmo salt e compara. NinguÃ©m "descriptografa" nada.
+
+Se sua organizaÃ§Ã£o exigir Argon2 ou bcrypt, Ã© possÃ­vel trocar:
+
+```ts
+emailAndPassword: {
+  enabled: true,
+  password: {
+    hash: async (senha) => meuHash(senha),
+    verify: async ({ hash, password }) => minhaVerificacao(hash, password),
+  },
+}
+```
+
+SÃ³ faÃ§a isso com uma biblioteca consolidada. Implementar criptografia "na mÃ£o" Ã© o clÃ¡ssico jeito de criar um buraco de seguranÃ§a.
+
+## Cadastro no cliente
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
+export function FormularioCadastro() {
+  const router = useRouter();
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  async function aoEnviar(evento: React.FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    setErro(null);
+
+    if (senha.length < 8) {
+      setErro("A senha precisa de pelo menos 8 caracteres.");
+      return;
+    }
+
+    setCarregando(true);
+    const { error } = await authClient.signUp.email({
+      name: nome,
+      email,
+      password: senha,
+      callbackURL: "/painel",
+    });
+    setCarregando(false);
+
+    if (error) {
+      setErro(traduzirErro(error.code, error.message));
+      return;
+    }
+
+    router.push("/painel");
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={aoEnviar}>
+      <label htmlFor="nome">Nome</label>
+      <input
+        id="nome"
+        value={nome}
+        onChange={(evento) => setNome(evento.target.value)}
+        autoComplete="name"
+        required
+      />
+
+      <label htmlFor="email">E-mail</label>
+      <input
+        id="email"
+        type="email"
+        value={email}
+        onChange={(evento) => setEmail(evento.target.value)}
+        autoComplete="email"
+        required
+      />
+
+      <label htmlFor="senha">Senha</label>
+      <input
+        id="senha"
+        type="password"
+        value={senha}
+        onChange={(evento) => setSenha(evento.target.value)}
+        autoComplete="new-password"
+        minLength={8}
+        required
+      />
+
+      {erro ? <p role="alert">{erro}</p> : null}
+
+      <button type="submit" disabled={carregando}>
+        {carregando ? "Criando conta..." : "Criar conta"}
+      </button>
+    </form>
+  );
+}
+```
+
+Detalhes que fazem diferenÃ§a:
+
+- **`autoComplete`** correto (`new-password` no cadastro, `current-password` no login) faz gerenciadores de senha funcionarem bem.
+- **`router.refresh()`** revalida os Server Components, para que a interface reflita a nova sessÃ£o.
+- **`role="alert"`** anuncia o erro em leitores de tela.
+- **`disabled` durante o envio** evita duplo clique e duas contas.
+
+## Login
+
+O formulÃ¡rio de login tem a mesma estrutura; o que muda Ã© o mÃ©todo e o tratamento do erro:
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
+export function FormularioLogin() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  async function aoEnviar(evento: React.FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    setErro(null);
+    setCarregando(true);
+
+    const { error } = await authClient.signIn.email({
+      email,
+      password: senha,
+      rememberMe: true,
+    });
+
+    setCarregando(false);
+
+    if (error) {
+      // Mensagem genÃ©rica: nÃ£o revelar se o e-mail existe.
+      setErro("E-mail ou senha invÃ¡lidos.");
+      return;
+    }
+
+    router.push("/painel");
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={aoEnviar}>
+      <label htmlFor="email-login">E-mail</label>
+      <input
+        id="email-login"
+        type="email"
+        value={email}
+        onChange={(evento) => setEmail(evento.target.value)}
+        autoComplete="email"
+        required
+      />
+
+      <label htmlFor="senha-login">Senha</label>
+      <input
+        id="senha-login"
+        type="password"
+        value={senha}
+        onChange={(evento) => setSenha(evento.target.value)}
+        autoComplete="current-password"
+        required
+      />
+
+      {erro ? <p role="alert">{erro}</p> : null}
+
+      <button type="submit" disabled={carregando}>
+        {carregando ? "Entrando..." : "Entrar"}
+      </button>
+    </form>
+  );
+}
+```
+
+O `rememberMe: true` faz o cookie persistir entre fechamentos do navegador. Com `false`, a sessÃ£o morre ao fechar.
+
+AlÃ©m do retorno `{ data, error }`, os mÃ©todos aceitam callbacks (`onRequest`, `onSuccess`, `onError`, `onResponse`) â€” Ãºtil para controlar estado de carregamento. Escolha um estilo e mantenha consistente no projeto.
+
+## Logout
+
+```tsx
+"use client";
+
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
+export function BotaoSair() {
+  const router = useRouter();
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await authClient.signOut();
+        router.push("/entrar");
+        router.refresh();
+      }}
+    >
+      Sair
+    </button>
+  );
+}
+```
+
+`signOut` invalida a sessÃ£o **no banco** e apaga o cookie. Como a sessÃ£o Ã© um registro real, apagÃ¡-la encerra o acesso de imediato â€” diferente de um JWT autocontido, que continuaria vÃ¡lido atÃ© expirar. No servidor, dentro de uma Server Action, o equivalente Ã© `auth.api.signOut({ headers: await headers() })`.
+
+## Tratamento de erros
+
+O objeto `error` traz `code`, `message` e `status`. Traduza os cÃ³digos:
+
+```ts
+function traduzirErro(codigo: string | undefined, fallback: string) {
+  switch (codigo) {
+    case "USER_ALREADY_EXISTS":
+      return "JÃ¡ existe uma conta com esse e-mail.";
+    case "INVALID_EMAIL_OR_PASSWORD":
+      return "E-mail ou senha invÃ¡lidos.";
+    case "PASSWORD_TOO_SHORT":
+      return "A senha precisa de pelo menos 8 caracteres.";
+    case "EMAIL_NOT_VERIFIED":
+      return "Confirme seu e-mail antes de entrar.";
+    default:
+      return fallback || "NÃ£o foi possÃ­vel concluir. Tente novamente.";
+  }
+}
+```
+
+Nuance de seguranÃ§a: no **login**, use sempre a mesma mensagem para e-mail inexistente e senha errada. Diferenciar entrega a um atacante uma lista de e-mails cadastrados (*user enumeration*). No **cadastro** Ã© inevitÃ¡vel revelar duplicidade â€” mas ali o dado jÃ¡ foi fornecido por quem tenta se cadastrar.
+
+## ValidaÃ§Ã£o com Zod
+
+Valide no cliente para dar feedback rÃ¡pido â€” e no servidor, sempre, porque o cliente pode ser burlado:
+
+```ts
+import { z } from "zod";
+
+export const esquemaCadastro = z.object({
+  nome: z.string().min(2, "Informe seu nome completo"),
+  email: z.string().email("E-mail invÃ¡lido"),
+  senha: z.string().min(8, "MÃ­nimo de 8 caracteres"),
+});
+
+const resultado = esquemaCadastro.safeParse({ nome, email, senha });
+if (!resultado.success) {
+  setErro(resultado.error.issues[0].message);
+  return;
+}
+```
+
+Sobre polÃ­tica de senha: pesquisas atuais (e o NIST) recomendam privilegiar **comprimento** em vez de regras decoradas de sÃ­mbolos. Um mÃ­nimo de 8â€“12 caracteres e bloqueio de senhas notoriamente vazadas protege mais que exigir `!@#`.
+
+## Cadastro pelo servidor
+
+Em scripts de seed ou telas de administraÃ§Ã£o, chame a API diretamente:
+
+```ts
+await auth.api.signUpEmail({
+  body: {
+    name: "Ana Souza",
+    email: "ana@devtrilha.dev",
+    password: "senha-bem-longa-e-aleatoria",
+  },
+});
+```
+
+Isso garante que o hash seja gerado do mesmo modo. **Nunca** insira um usuÃ¡rio com senha via `prisma.user.create()` â€” a tabela `account` nÃ£o seria populada corretamente e o login falharia.
+
+## Rate limiting
+
+Sem limite de tentativas, um formulÃ¡rio de login Ã© um convite a forÃ§a bruta:
+
+```ts
+export const auth = betterAuth({
+  // ...
+  rateLimit: {
+    enabled: true,
+    window: 60,   // segundos
+    max: 10,      // requisiÃ§Ãµes por janela
+  },
+});
+```
+
+Em produÃ§Ã£o, combine com proteÃ§Ã£o na borda (WAF, Cloudflare) para casos de ataque distribuÃ­do.
+
+## Por isso importa
+
+FormulÃ¡rios de cadastro e login sÃ£o a primeira interaÃ§Ã£o real de qualquer pessoa com o seu produto â€” e tambÃ©m o ponto mais atacado. Delegar o hash e a sessÃ£o para uma biblioteca testada elimina toda uma classe de vulnerabilidades, enquanto o cuidado com mensagens genÃ©ricas, `autoComplete`, estados de carregamento e rate limiting Ã© o que separa um fluxo profissional de um formulÃ¡rio que frustra usuÃ¡rios legÃ­timos e facilita a vida de atacantes.
+
+## Quiz
+
+Espere perguntas sobre por que senhas sÃ£o armazenadas como hash com salt (e por que scrypt Ã© lento de propÃ³sito), qual mÃ©todo do cliente cria a conta e qual autentica, e o efeito de `router.refresh()` depois do login.
+
+Vale revisar tambÃ©m por que a mensagem de erro no login deve ser genÃ©rica, o papel de `autoSignIn` e por que criar usuÃ¡rios direto pelo Prisma quebra a autenticaÃ§Ã£o.

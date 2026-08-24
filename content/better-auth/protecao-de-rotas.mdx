@@ -1,0 +1,286 @@
+# Sessões e proteção de rotas
+
+**Autenticar é só o começo. O trabalho contínuo é responder, em cada requisição, "quem é essa pessoa e ela pode ver isso?". Better-Auth resolve isso com sessões em banco identificadas por um cookie assinado — e o App Router do Next.js dá os lugares certos para checar.**
+
+## Como funciona a sessão
+
+O fluxo, do login à página protegida:
+
+1. A pessoa envia e-mail e senha para `/api/auth/sign-in/email`.
+2. O servidor valida o hash e **cria uma linha na tabela `session`** com token, `expiresAt`, `userId`, IP e user-agent.
+3. A resposta traz um `Set-Cookie` com o token de sessão.
+4. Em cada requisição seguinte, o navegador envia o cookie automaticamente.
+5. O servidor busca a sessão pelo token, confere a expiração e devolve `{ user, session }`.
+
+O cookie tem atributos que importam:
+
+- **`httpOnly`** — JavaScript da página não consegue ler; mitiga roubo de token por XSS.
+- **`secure`** — só trafega por HTTPS (em produção).
+- **`sameSite=lax`** — não é enviado em requisições cross-site perigosas; mitiga CSRF.
+- **`path=/`** — vale em toda a aplicação.
+
+O nome padrão é `better-auth.session_token`, e em HTTPS ganha o prefixo `__Secure-`.
+
+**Sessão em banco vs JWT:** com sessão em banco, `signOut` ou um banimento têm efeito imediato, porque a linha desaparece. Um JWT autocontido continuaria aceito até expirar. O custo é uma consulta por verificação — mitigável com cache de cookie.
+
+## Lendo a sessão no servidor
+
+A função central é `auth.api.getSession`, que recebe os headers da requisição:
+
+```ts
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+
+const session = await auth.api.getSession({
+  headers: await headers(),
+});
+
+// session === null            → visitante anônimo
+// session.user.id / .email    → dados do usuário
+// session.session.expiresAt   → validade
+```
+
+No Next.js 16, `headers()` é assíncrono — por isso o `await`. Esquecer isso é o erro mais comum aqui.
+
+## Protegendo um Server Component
+
+```tsx
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+
+export default async function PainelPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session) {
+    redirect("/login?proximo=/painel");
+  }
+
+  return <h1>Olá, {session.user.name}</h1>;
+}
+```
+
+`redirect()` lança uma exceção especial que o Next intercepta — portanto não precisa de `return` depois, e nada abaixo executa.
+
+Para não repetir isso em cada página, extraia um helper:
+
+```ts
+// src/lib/sessao.ts
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+
+export async function obterSessao() {
+  return auth.api.getSession({ headers: await headers() });
+}
+
+export async function exigirSessao(proximo = "/") {
+  const session = await obterSessao();
+  if (!session) {
+    redirect(`/login?proximo=${encodeURIComponent(proximo)}`);
+  }
+  return session;
+}
+```
+
+O uso fica de uma linha: `const { user } = await exigirSessao("/painel");`.
+
+Se várias páginas compartilham a mesma proteção, chame o helper no `layout.tsx` do grupo de rotas — mas mantenha a checagem também nas páginas que fazem operações sensíveis, porque layouts não reexecutam em toda navegação.
+
+## Protegendo Route Handlers
+
+```ts
+// src/app/api/progresso/route.ts
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session) {
+    return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
+  }
+
+  const { licaoId } = await request.json();
+
+  const progresso = await prisma.progresso.upsert({
+    where: { usuarioId_licaoId: { usuarioId: session.user.id, licaoId } },
+    update: { concluido: true },
+    create: { usuarioId: session.user.id, licaoId, concluido: true },
+  });
+
+  return NextResponse.json(progresso);
+}
+```
+
+Aqui usamos `request.headers` diretamente — já temos a requisição em mãos. E, crucial: o `usuarioId` vem **da sessão**, nunca do corpo do JSON. Confiar num `usuarioId` enviado pelo cliente é permitir que qualquer pessoa escreva em nome de outra.
+
+Diferencie os status:
+
+- **401 Unauthorized** — não sei quem você é (faça login).
+- **403 Forbidden** — sei quem você é, mas você não tem permissão.
+
+## Protegendo Server Actions
+
+Server Actions são endpoints POST públicos disfarçados de função. Toda action sensível precisa checar sessão:
+
+```ts
+"use server";
+
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export async function concluirLicao(licaoId: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Não autenticado");
+
+  await prisma.progresso.upsert({
+    where: { usuarioId_licaoId: { usuarioId: session.user.id, licaoId } },
+    update: { concluido: true },
+    create: { usuarioId: session.user.id, licaoId, concluido: true },
+  });
+}
+```
+
+Não presuma que, porque o botão só aparece para quem está logado, a action está protegida. Esconder a interface não é segurança.
+
+
+## Checagem otimista no `proxy.ts`
+
+No Next.js 16, o `proxy.ts` substitui o antigo `middleware.ts`. Ele roda antes de tudo e serve para redirecionar cedo — mas deve fazer só o trabalho **barato**. É o padrão do projeto, em `src/proxy.ts`:
+
+```ts
+import { type NextRequest, NextResponse } from "next/server";
+
+const ROTAS_PROTEGIDAS = ["/", "/modulos"];
+
+const COOKIES_SESSAO = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+];
+
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const protegida = ROTAS_PROTEGIDAS.some(
+    (rota) => pathname === rota || pathname.startsWith(`${rota}/`),
+  );
+  if (!protegida) return NextResponse.next();
+
+  const temCookieSessao = COOKIES_SESSAO.some((nome) =>
+    request.cookies.has(nome),
+  );
+  if (!temCookieSessao) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("proximo", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/", "/modulos/:path*"],
+};
+```
+
+O ponto central: ele verifica apenas **a presença do cookie**, não sua validade. Isso é deliberado.
+
+- Um cookie expirado ou forjado passa por aqui — e é barrado depois, no Server Component, pelo `getSession()`.
+- Em troca, o caso comum (visitante sem cookie tentando abrir área logada) é resolvido sem nenhuma consulta ao banco.
+- O `matcher` limita o custo às rotas que interessam; assets e rotas públicas não pagam nada.
+
+Chamar `getSession()` no proxy seria tentador, mas colocaria uma query de banco na frente de **toda** requisição casada, incluindo prefetches de navegação. A segurança real precisa morar na camada que lê os dados — e é lá que ela está.
+
+## `useSession` no cliente
+
+Para interface reativa em Client Components:
+
+```tsx
+"use client";
+
+import { authClient } from "@/lib/auth-client";
+
+export function MenuUsuario() {
+  const { data: session, isPending, error } = authClient.useSession();
+
+  if (isPending) return <span>Carregando...</span>;
+  if (error) return <span>Erro ao carregar sessão</span>;
+  if (!session) return <a href="/login">Entrar</a>;
+
+  return (
+    <div>
+      <span>{session.user.email}</span>
+      <button type="button" onClick={() => authClient.signOut()}>
+        Sair
+      </button>
+    </div>
+  );
+}
+```
+
+O hook mantém um store compartilhado: várias instâncias do componente não disparam várias requisições, e após `signIn`/`signOut` o estado atualiza em todas.
+
+Evite depender só dele para renderizar dados sigilosos — há um instante de `isPending` e o valor vem de uma chamada que o usuário pode manipular no devtools. Para dados sensíveis, busque a sessão no servidor e passe como prop para o componente cliente.
+
+## Expiração e renovação
+
+Configure o ciclo de vida no `auth.ts`:
+
+```ts
+export const auth = betterAuth({
+  // ...
+  session: {
+    expiresIn: 60 * 60 * 24 * 7,      // 7 dias
+    updateAge: 60 * 60 * 24,          // renova se usada após 1 dia
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,                 // 5 minutos de cache
+    },
+  },
+});
+```
+
+- **`expiresIn`** — validade total.
+- **`updateAge`** — janela de renovação deslizante: quem usa o sistema continua logado; quem desaparece expira.
+- **`cookieCache`** — guarda os dados da sessão assinados no próprio cookie por poucos minutos, poupando consultas ao banco. O trade-off é que uma revogação pode levar até `maxAge` para ter efeito — por isso mantenha o valor pequeno.
+
+## Encerrando sessões
+
+```ts
+// encerra a sessão atual
+await authClient.signOut();
+
+// lista todas as sessões do usuário
+const sessoes = await authClient.listSessions();
+
+// revoga uma sessão específica (ex.: "sair deste dispositivo")
+await authClient.revokeSession({ token });
+
+// revoga todas as outras
+await authClient.revokeOtherSessions();
+```
+
+No servidor, os equivalentes vivem em `auth.api.*` e recebem `headers`. Uma tela de "dispositivos conectados" usando `listSessions` mais `revokeSession` é um recurso de segurança simples e muito valorizado por usuários.
+
+## Erros comuns
+
+- **Esquecer `await headers()`** — em Next.js 16 é assíncrono; sem `await`, `getSession` recebe lixo e devolve `null`.
+- **Confiar apenas no proxy** — checagem otimista não valida nada; sempre revalide na camada de dados.
+- **Ler `userId` do corpo da requisição** — use o da sessão.
+- **Proteger só a interface** — botão escondido não impede uma requisição feita à mão.
+- **`trustedOrigins` mal configurado** — em produção o cookie não é aceito se a origem não estiver na lista.
+- **Cache indevido** — páginas que dependem de sessão precisam ser dinâmicas; `headers()` já força isso, mas evite `force-static` nelas.
+
+## Por isso importa
+
+Autorização é onde vazamentos de dados realmente acontecem: quase nunca alguém quebra o hash da senha, mas é comum encontrar um endpoint que aceita `usuarioId` do cliente ou uma página que só esconde o link. Entender que a sessão é um registro no banco, que o cookie é apenas o ponteiro, e que a validação precisa acontecer na camada que toca os dados — com o proxy fazendo apenas o desvio barato — é o que produz uma aplicação segura e ainda rápida.
+
+## Quiz
+
+O quiz cobre onde a sessão realmente vive, por que `auth.api.getSession` precisa dos headers e qual é o papel — deliberadamente limitado — da checagem no `proxy.ts`.
+
+Revise também a diferença entre 401 e 403, por que o `usuarioId` deve sair da sessão e não do corpo da requisição, e o trade-off do `cookieCache` na revogação de sessões.

@@ -1,0 +1,196 @@
+# Listas, formulários e eventos
+
+**Renderizar listas, capturar eventos e controlar formulários** é o dia a dia de qualquer aplicação interativa. O React unifica tudo sob o mesmo princípio declarativo: a UI reflete o estado, e eventos atualizam o estado.
+
+## Renderizando listas com `.map`
+
+Para exibir uma coleção, use `Array.prototype.map` dentro do JSX, retornando um elemento por item.
+
+```jsx
+const frutas = ["maçã", "banana", "uva"];
+
+function Lista() {
+  return (
+    <ul>
+      {frutas.map((fruta) => (
+        <li key={fruta}>{fruta}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### A prop `key`
+
+Cada item de uma lista precisa de uma `key` estável e única entre os irmãos. A `key` é usada pelo React para identificar quais itens mudaram, foram adicionados ou removidos durante a reconciliação.
+
+```jsx
+const usuarios = [
+  { id: 1, nome: "Ana" },
+  { id: 2, nome: "Beto" },
+];
+
+function ListaUsuarios() {
+  return (
+    <ul>
+      {usuarios.map((u) => (
+        <li key={u.id}>{u.nome}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### Boas práticas de `key`
+
+- Use um **id do domínio** (banco de dados), não o índice do array.
+- O índice só é aceitável para listas estáticas que nunca reordenam ou removem itens.
+- `key` deve ser estável entre renders; mudar a `key` força recriação do componente.
+
+```jsx
+// Ruim: reordenar com índice quebra a identidade
+itens.map((item, i) => <li key={i}>{item}</li>);
+
+// Bom: identificador estável
+itens.map((item) => <li key={item.id}>{item.nome}</li>);
+```
+
+## Manipulação de eventos
+
+Eventos no React usam nomes em **camelCase** (`onClick`, `onChange`, `onSubmit`) e recebem funções, não strings como no HTML.
+
+```jsx
+function Botao() {
+  function handleClick() {
+    console.log("clicou");
+  }
+  return <button onClick={handleClick}>Clique</button>;
+}
+```
+
+O objeto de evento é o `SyntheticEvent`, compatível entre navegadores. Para evitar o comportamento padrão (como recarregar a página em formulários), use `preventDefault`.
+
+## Formulários controlados
+
+Um **formulário controlado** tem seu valor vindo do estado do React. Cada campo liga `value` ao estado e `onChange` à atualização. Assim a fonte única de verdade é o estado.
+
+```jsx
+import { useState } from "react";
+
+function Formulario() {
+  const [nome, setNome] = useState("");
+
+  function handleChange(event) {
+    setNome(event.target.value);
+  }
+
+  return (
+    <input
+      value={nome}
+      onChange={handleChange}
+      placeholder="Seu nome"
+    />
+  );
+}
+```
+
+### Múltiplos campos
+
+Para formulários maiores, use um objeto de estado e atualize a chave correspondente. Uma única rotina de `onChange` serve a todos os campos usando `name`.
+
+```jsx
+function Cadastro() {
+  const [form, setForm] = useState({ nome: "", email: "" });
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((anterior) => ({ ...anterior, [name]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault(); // impede reload
+    console.log(form); // { nome, email }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="nome" value={form.nome} onChange={handleChange} />
+      <input name="email" value={form.email} onChange={handleChange} />
+      <button type="submit">Enviar</button>
+    </form>
+  );
+}
+```
+
+### `preventDefault` e submits
+
+Sempre chame `event.preventDefault()` no `onSubmit` de formulários controlados; caso contrário o navegador recarrega a página e o estado do React é perdido.
+
+## Eventos comuns e dicas
+
+- `onClick`: cliques em botões, itens de lista.
+- `onChange`: inputs, selects, textareas.
+- `onSubmit`: envio de formulário.
+- Passe argumentos com arrow function: `onClick={() => remover(id)}`.
+
+```jsx
+function ListaTarefas({ tarefas, aoRemover }) {
+  return (
+    <ul>
+      {tarefas.map((t) => (
+        <li key={t.id}>
+          {t.texto}
+          <button onClick={() => aoRemover(t.id)}>Remover</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Validando antes de enviar
+
+```jsx
+function Login() {
+  const [email, setEmail] = useState("");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!email.includes("@")) {
+      alert("E-mail inválido");
+      return;
+    }
+    // prossegue
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={email} onChange={(e) => setEmail(e.target.value)} />
+      <button type="submit">Entrar</button>
+    </form>
+  );
+}
+```
+
+## Boas práticas
+
+- Use `key` estável baseada em id, nunca índice para listas dinâmicas.
+- Mantenha formulários controlados: `value` + `onChange` + estado.
+- Atualize múltiplos campos com um único handler baseado em `name`.
+- Chame `preventDefault` no submit.
+- Extraia handlers para funções nomeadas quando ficarem grandes.
+
+## Armadilhas comuns
+
+- Esquecer a `key` (React reclama no console e reusa DOM incorretamente).
+- Usar o índice como `key` em listas que mudam de ordem.
+- Mutar o estado do formulário diretamente em vez de `setForm`.
+- Esquecer `preventDefault` e recarregar a página no submit.
+
+## Por isso importa
+
+Listas, eventos e formulários são onde o estado encontra o usuário. Dominar o padrão controlado e o uso correto de `key` evita os bugs mais comuns de aplicações React — da UI fora de sincronia a perda de foco em inputs — e prepara o terreno para formulários avançados com as Actions do React 19.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: por que a `key` importa, a diferença entre formulário controlado e não controlado, o uso de `preventDefault`, e como atualizar múltiplos campos com um único handler.

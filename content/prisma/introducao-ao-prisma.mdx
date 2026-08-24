@@ -1,0 +1,221 @@
+# Introdução ao Prisma ORM
+
+**Prisma é o ORM que a DevTrilha usa para conversar com o PostgreSQL. Em vez de escrever SQL solto e torcer para os nomes das colunas estarem certos, você descreve seus dados num arquivo de schema e o Prisma gera um cliente TypeScript totalmente tipado, com autocompletar, migrations versionadas e uma interface visual para inspecionar o banco.**
+
+Nesta lição você vai entender o que é um ORM, quais são as três peças do Prisma, como instalar e conectar ao PostgreSQL usando **driver adapters** (obrigatórios no Prisma 7) e como fazer a primeira consulta real.
+
+## O que é um ORM
+
+ORM significa *Object-Relational Mapping*: uma camada que traduz **linhas de tabelas** em **objetos da sua linguagem**.
+
+Sem ORM, uma consulta em Node.js costuma ficar assim:
+
+```ts
+const { rows } = await pool.query(
+  "SELECT id, nome, email FROM usuario WHERE email = $1",
+  [email],
+);
+const usuario = rows[0]; // tipo: any 😬
+```
+
+Problemas:
+
+- `rows[0]` é `any` — o TypeScript não sabe nada sobre o resultado.
+- Erro de digitação em `emial` só aparece em produção.
+- Alterar a tabela não quebra o código em tempo de compilação.
+
+Com Prisma:
+
+```ts
+const usuario = await prisma.usuario.findUnique({
+  where: { email },
+});
+// usuario: { id: string; nome: string; email: string; ... } | null
+```
+
+O tipo é derivado do schema. Se você renomear uma coluna, o `tsc` aponta todos os lugares afetados.
+
+## Por que Prisma e não outro
+
+- **Type-safety de verdade**: o Prisma Client é *gerado* a partir do schema, não inferido por decorators.
+- **Migrations declarativas**: você edita o schema, o Prisma calcula o SQL de diferença.
+- **Prisma Studio**: um painel web para ler e editar dados sem escrever SQL.
+- **Consultas relacionais legíveis**: `include`/`select` resolvem joins sem string concatenada.
+- **Multi-banco**: PostgreSQL, MySQL, SQLite, SQL Server, MongoDB. Aqui usamos **PostgreSQL**.
+
+Trade-offs honestos: consultas muito exóticas (CTEs recursivas, window functions complexas) às vezes pedem `$queryRaw`. O Prisma não impede SQL puro — só torna o caminho comum agradável.
+
+## As três peças da arquitetura
+
+1. **Prisma Schema** (`prisma/schema.prisma`): a fonte da verdade. Declara a conexão, o gerador e os *models*.
+2. **Prisma Client**: código TypeScript **gerado** a partir do schema. É o objeto `prisma` que você importa.
+3. **Prisma CLI** (`npx prisma ...`): comandos de geração, migração, introspecção e Studio.
+
+O fluxo mental é sempre o mesmo:
+
+```
+editar schema.prisma  →  prisma migrate dev  →  Prisma Client regenerado  →  usar no código
+```
+
+## Instalação
+
+```bash
+npm install prisma --save-dev
+npm install @prisma/client @prisma/adapter-pg pg
+npm install --save-dev @types/pg
+```
+
+- `prisma` — a CLI (dependência de desenvolvimento).
+- `@prisma/client` — runtime do cliente.
+- `@prisma/adapter-pg` + `pg` — o **driver adapter** para PostgreSQL. No Prisma 7 o motor nativo saiu do caminho e o adapter passou a ser a forma padrão de conectar.
+
+## `prisma init`
+
+```bash
+npx prisma init --datasource-provider postgresql
+```
+
+Isso cria:
+
+- `prisma/schema.prisma` com `datasource` e `generator` já preenchidos;
+- uma entrada `DATABASE_URL` no `.env`.
+
+O schema inicial da DevTrilha se parece com:
+
+```prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  nome      String
+  criadoEm  DateTime @default(now())
+}
+```
+
+Observe o `output`: no Prisma 7 o gerador moderno (`prisma-client`) escreve o cliente numa pasta do seu projeto — por isso importamos de `@/generated/prisma/client`, e não de `@prisma/client`.
+
+## Conexão com PostgreSQL
+
+A `DATABASE_URL` segue o formato:
+
+```bash
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/devtrilha?schema=public"
+```
+
+Partes: usuário, senha, host, porta (5432 é o padrão do Postgres), nome do banco e o schema lógico. Em serviços gerenciados costuma haver `?sslmode=require`.
+
+Nunca comite o `.env`. O repositório tem `.env.example` como referência — copie e preencha:
+
+```bash
+cp .env.example .env
+```
+
+## `npx prisma generate`
+
+Esse comando lê o schema e (re)escreve o Prisma Client:
+
+```bash
+npx prisma generate
+```
+
+Rode sempre que:
+
+- alterar o schema sem rodar `migrate dev`;
+- clonar o repositório e instalar dependências (o cliente gerado normalmente **não** vai para o Git);
+- fazer deploy em um ambiente novo.
+
+Se você importar `prisma` antes de gerar, o TypeScript reclama que o módulo não existe — é sintoma clássico de `generate` esquecido.
+
+## Instanciando o cliente com driver adapter
+
+Esse é o padrão usado em `src/lib/prisma.ts`:
+
+```ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const globalParaPrisma = globalThis as unknown as {
+  prisma?: InstanceType<typeof PrismaClient>;
+};
+
+function criarCliente() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL não definida.");
+  }
+  const adapter = new PrismaPg({ connectionString });
+  return new PrismaClient({ adapter });
+}
+
+export const prisma = globalParaPrisma.prisma ?? criarCliente();
+
+if (process.env.NODE_ENV !== "production") {
+  globalParaPrisma.prisma = prisma;
+}
+```
+
+Dois detalhes importantes:
+
+- **`adapter`** é obrigatório no Prisma 7 para PostgreSQL. Ele delega o transporte ao driver `pg`.
+- O **singleton no `globalThis`** evita que o hot reload do Next.js abra dezenas de pools de conexão em desenvolvimento. Em produção o módulo é avaliado uma vez, então não precisamos do cache global.
+
+## Primeira consulta
+
+Em um Server Component do App Router você pode consultar direto, sem API intermediária:
+
+```tsx
+import { prisma } from "@/lib/prisma";
+
+export default async function PaginaUsuarios() {
+  const usuarios = await prisma.usuario.findMany({
+    orderBy: { criadoEm: "desc" },
+    take: 10,
+  });
+
+  return (
+    <ul>
+      {usuarios.map((usuario) => (
+        <li key={usuario.id}>
+          {usuario.nome} — {usuario.email}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+Passe o mouse sobre `usuarios` no editor: o tipo é `Usuario[]`, com todos os campos do model. Nada de `any`.
+
+## Prisma Studio
+
+```bash
+npx prisma studio
+```
+
+Abre `http://localhost:5555` com uma tabela navegável do seu banco. Ótimo para conferir se o seed rodou, corrigir um registro de teste ou explicar o modelo de dados para alguém não técnico.
+
+## Erros comuns de quem está começando
+
+- **Esquecer `await`**: o cliente devolve promessas; sem `await` você renderiza um objeto `Promise`.
+- **Importar `prisma` em Client Component**: o cliente só roda no servidor. Use Server Components, Route Handlers ou Server Actions.
+- **Criar `new PrismaClient()` em cada arquivo**: esgota o pool. Importe sempre o singleton de `src/lib/prisma.ts`.
+- **Rodar comandos sem `.env`**: a CLI lê a `DATABASE_URL` do arquivo `.env` na raiz.
+
+## Por isso importa
+
+Banco de dados é onde os bugs custam mais caro: um campo errado pode significar dados corrompidos, não apenas um layout torto. O Prisma move grande parte desses erros do runtime para o momento em que você digita, e deixa um histórico de migrations que qualquer pessoa do time pode aplicar do zero. Em um projeto Next.js com Server Components, esse cliente tipado é o que permite ir da página direto ao banco sem camadas de tradução frágeis — e entender os driver adapters é o que garante que isso funcione igual no seu notebook, na CI e em produção.
+
+## Quiz
+
+O quiz cobre o papel de cada peça da arquitetura (schema, cliente gerado, CLI), o que exatamente `npx prisma generate` produz e por que o Prisma 7 exige um driver adapter para falar com o PostgreSQL.
+
+Revise também o motivo do singleton no `globalThis` e o formato da `DATABASE_URL` — são os dois pontos onde mais gente escorrega ao montar o ambiente pela primeira vez.

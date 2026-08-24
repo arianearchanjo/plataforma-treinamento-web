@@ -1,0 +1,196 @@
+# Promises e async/await
+
+**JavaScript é single-threaded**, mas precisa lidar com operações que demoram —
+requisições de rede, leitura de arquivos, timers — sem travar a interface. Para
+isso ele usa programação **assíncrona**, e as **Promises** (junto com a sintaxe
+`async`/`await`) são a forma moderna e legível de organizar esse código,
+substituindo o temido "callback hell" por fluxos que parecem síncronos.
+
+## O problema: callback hell
+
+No passado, código assíncrono dependia de *callbacks* (funções passadas como
+argumento). Encadeados, geravam pirâmides ilegíveis:
+
+```js
+buscarUsuario(1, (usuario) => {
+  buscarPedidos(usuario.id, (pedidos) => {
+    buscarDetalhes(pedidos[0], (detalhes) => {
+      // ...e assim desce
+    }, tratarErro);
+  }, tratarErro);
+}, tratarErro);
+```
+
+Difícil de ler, de manter e de tratar erros. As Promises vieram para resolver
+isso.
+
+## O que é uma Promise
+
+Uma **Promise** representa um valor que pode estar disponível agora, no futuro
+ou nunca. Ela tem três estados:
+
+- **pending** (pendente)
+- **fulfilled** (resolvida com valor)
+- **rejected** (rejeitada com erro)
+
+```js
+const promessa = new Promise((resolve, reject) => {
+  const sucesso = true;
+  if (sucesso) {
+    resolve("Deu certo!");
+  } else {
+    reject(new Error("Algo falhou"));
+  }
+});
+```
+
+## Consumindo com .then / .catch / .finally
+
+```js
+promessa
+  .then((resultado) => {
+    console.log(resultado); // "Deu certo!"
+    return resultado.toUpperCase();
+  })
+  .then((texto) => console.log(texto))
+  .catch((erro) => console.error("Erro:", erro.message))
+  .finally(() => console.log("Terminou (sucesso ou erro)"));
+```
+
+Encadear `.then` transforma o valor passo a passo. `.catch` captura erros de
+qualquer etapa anterior; `.finally` roda sempre, útil para limpar estado.
+
+## async/await: a sintaxe moderna
+
+`async` torna uma função assíncrona (ela sempre devolve uma Promise). `await`
+pausa a execução até a Promise resolver, sem bloquear a thread.
+
+```js
+async function buscarDados() {
+  try {
+    const resposta = await fetch("/api/usuarios");
+    const usuarios = await resposta.json();
+    console.log(usuarios);
+    return usuarios;
+  } catch (erro) {
+    console.error("Falhou:", erro);
+  } finally {
+    console.log("Requisição finalizada");
+  }
+}
+```
+
+O código lê como se fosse síncrono, mas continua não bloqueante. Erros são
+capturados com `try/catch` tradicional.
+
+## fetch: buscando dados da web
+
+`fetch` é a API nativa para requisições HTTP e devolve uma Promise.
+
+```js
+async function carregarPerfil(id) {
+  const res = await fetch(`https://api.exemplo.com/usuarios/${id}`);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const dados = await res.json();
+  return dados;
+}
+```
+
+Atenção: `fetch` **não** rejeita a Promise em erros HTTP (como 404 ou 500) —
+apenas em falha de rede. Por isso verifique `res.ok`.
+
+## Tratamento de erros
+
+```js
+async function tentar() {
+  try {
+    await carregarPerfil(999);
+  } catch (erro) {
+    console.error("Tratado:", erro.message);
+  }
+}
+```
+
+Você também pode tratar no nível da Promise com `.catch`, mas `try/catch` com
+`await` costuma ser mais claro.
+
+## Executando em paralelo: Promise.all
+
+Se várias tarefas são independentes, não espere uma a uma — rode em paralelo.
+
+```js
+async function carregarTudo() {
+  const [usuarios, produtos, pedidos] = await Promise.all([
+    fetch("/api/usuarios").then((r) => r.json()),
+    fetch("/api/produtos").then((r) => r.json()),
+    fetch("/api/pedidos").then((r) => r.json()),
+  ]);
+  return { usuarios, produtos, pedidos };
+}
+```
+
+`Promise.all` devolve um array com os resultados na mesma ordem e **rejeita**
+se **qualquer** Promise falhar. Se quiser que continue mesmo com falhas, use
+`Promise.allSettled`.
+
+```js
+const resultados = await Promise.allSettled([p1, p2]);
+// cada item: { status: "fulfilled", value } ou { status: "rejected", reason }
+```
+
+Outras utilidades: `Promise.race` (a primeira a terminar ganha) e
+`Promise.any` (a primeira a **resolver** com sucesso).
+
+## Exemplo prático completo
+
+```js
+async function enviarFormulario(dados) {
+  try {
+    const res = await fetch("/api/cadastro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    return await res.json();
+  } catch (erro) {
+    console.error("Falha no cadastro:", erro);
+    throw erro; // repropaga se quem chamou quiser tratar
+  }
+}
+```
+
+## Boas práticas
+
+- Prefira `async`/`await` a `then` para fluxos lineares.
+- Sempre trate erros (`.catch` ou `try/catch`).
+- Verifique `res.ok` no `fetch`.
+- Use `Promise.all` para requisições independentes (paralelismo = performance).
+- Não esqueça que funções `async` devolvem Promise — quem chama deve `await`.
+
+## Armadilhas comuns
+
+- Esquecer o `await`: a Promise é retornada, não o valor.
+- Achar que `fetch` rejeita em 404 (ele não rejeita — verifique `res.ok`).
+- Esperar requisições independentes em sequência (lentidão desnecessária).
+- Tratar erro e esquecer de repropagar quando necessário.
+- `await` fora de função `async` (erro de sintaxe).
+
+## Por isso importa
+
+Assincronismo é onipresente na web: quase toda aplicação real consome APIs,
+lê arquivos ou aguarda o usuário. Dominar Promises e `async`/`await` — e saber
+evitar o callback hell, tratar erros corretamente e paralelizar com
+`Promise.all` — é a diferença entre código assíncrono caótico e código limpo,
+rápido e confiável.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que é
+uma Promise, diferença entre callbacks e async/await, `.then`/`.catch`/`.finally`,
+uso correto de `fetch` e `Promise.all`.

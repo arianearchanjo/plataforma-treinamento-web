@@ -1,0 +1,198 @@
+# Data fetching e cache
+
+**Buscar dados no Next.js** aproveita o `fetch` nativo do navegador/Node dentro de Server Components. O framework adiciona controle de cache e memoização, permitindo que você decida entre dados sempre frescos ou pré-renderizados e revalidados.
+
+## Fetch nativo em Server Components
+
+Como Server Components rodam no servidor, você pode usar `await fetch(...)` diretamente na renderização, sem useEffect.
+
+```tsx
+export default async function Noticias() {
+  const res = await fetch("https://api.exemplo.com/noticias");
+  const noticias = await res.json();
+  return (
+    <ul>
+      {noticias.map((n: { id: number; titulo: string }) => (
+        <li key={n.id}>{n.titulo}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## `async`/`await` em componentes
+
+Server Components podem ser `async`, então o fluxo de busca é linear e legível — não há estados de "carregando" manual para dados do servidor (embora você possa usar `loading.tsx` como fallback de rota).
+
+```tsx
+export default async function Perfil({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const usuario = await buscarUsuario(id);
+  return <h1>{usuario.nome}</h1>;
+}
+```
+
+## Opções de cache no Next 16
+
+A partir do Next.js 15/16, o `fetch` **não é mais cacheado por padrão** (comportamento `no-store`). Para habilitar cache, use a opção `next: { revalidate }`.
+
+```tsx
+// Sempre busca do servidor (padrão no Next 16)
+const res = await fetch("https://api.exemplo.com/agora", { cache: "no-store" });
+
+// Cache por 60 segundos (ISR sob demanda)
+const res2 = await fetch("https://api.exemplo.com/posts", {
+  next: { revalidate: 60 },
+});
+```
+
+- `cache: "no-store"`: dados dinâmicos, nunca cacheados.
+- `next: { revalidate: 60 }`: revalida após 60s; ótimo para conteúdo que muda ocasionalmente.
+- `next: { tags: ["posts"] }`: permite invalidação por tag com `revalidateTag`.
+
+```tsx
+import { revalidateTag } from "next/cache";
+
+export async function atualizarPost() {
+  // após salvar no banco...
+  revalidateTag("posts"); // invalida fetches com essa tag
+}
+```
+
+## Memoização de fetches
+
+O Next.js **deduplica** fetches idênticos no mesmo render: se dois componentes pedem a mesma URL com as mesmas opções, a requisição ocorre uma única vez.
+
+```tsx
+// Ambos os componentes abaixo compartilham a mesma requisição neste render
+async function obterUsuario() {
+  const res = await fetch("https://api.exemplo.com/usuario/1", {
+    next: { revalidate: 30 },
+  });
+  return res.json();
+}
+```
+
+Isso evita sobrecarga sem você gerenciar cache manual.
+
+## `generateMetadata` para SEO
+
+`generateMetadata` permite definir título e descrição dinâmicos por rota, essenciais para SEO e compartilhamento em redes sociais.
+
+```tsx
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await buscarPost(slug);
+  return {
+    title: post?.titulo ?? "Post",
+    description: post?.resumo ?? "Leia na DevTrilha",
+  };
+}
+
+export default async function Post({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = await buscarPost(slug);
+  return <h1>{post.titulo}</h1>;
+}
+```
+
+## Padrões de carregamento de dados no servidor
+
+- Busque o mais próximo possível do componente que usa os dados.
+- Use `loading.tsx` para feedback enquanto a rota carrega.
+- Combine `revalidate`/`tags` para frescor controlado.
+- Prefira Server Components para acesso a dados e deixe Client Components para interação.
+
+```tsx
+// app/blog/[slug]/loading.tsx
+export default function Carregando() {
+  return <p>Carregando post...</p>;
+}
+```
+
+## Exemplo completo com cache e metadata
+
+```tsx
+import type { Metadata } from "next";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: "Produtos | DevTrilha" };
+}
+
+export default async function Produtos() {
+  const res = await fetch("https://api.exemplo.com/produtos", {
+    next: { revalidate: 120, tags: ["produtos"] },
+  });
+  const produtos = await res.json();
+  return (
+    <ul>
+      {produtos.map((p: { id: number; nome: string }) => (
+        <li key={p.id}>{p.nome}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Erros e tratamento
+
+Quando um fetch falha em um Server Component, você pode capturar o erro e renderizar uma UI amigável, ou deixar que um `error.tsx` da pasta assuma.
+
+```tsx
+export default async function Post({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  try {
+    const post = await buscarPost(slug);
+    return <h1>{post.titulo}</h1>;
+  } catch {
+    return <p>Não foi possível carregar o post.</p>;
+  }
+}
+```
+
+## Streaming com Suspense
+
+Você pode envolver partes que buscam dados em `<Suspense>`, permitindo que a página já renderize enquanto dados pesados carregam (streaming).
+
+```tsx
+import { Suspense } from "react";
+
+export default function Pagina() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Carregando métricas...</p>}>
+        <Metricas />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+## Boas práticas
+
+- Defina explicitamente `cache: "no-store"` para dados sensíveis/tempo real.
+- Use `revalidate` + `tags` em vez de cache eterno.
+- Centralize fetches em funções (`lib/api.ts`) para reaproveitar e testar.
+- Sempre forneça `generateMetadata` em páginas públicas.
+
+## Armadilhas comuns
+
+- Assumir que o fetch é cacheado por padrão no Next 16 (não é).
+- Usar `useEffect` + fetch no cliente quando um Server Component bastaria.
+- Esquecer `await params` antes de usar o slug.
+- Deixar páginas públicas sem `generateMetadata`, prejudicando SEO.
+
+## Por isso importa
+
+Buscar e cachear dados corretamente define a performance e o SEO da aplicação. No Next.js 16, o padrão sem cache e o controle fino via `revalidate`/`tags`, somados ao `generateMetadata`, permitem páginas rápidas e bem indexadas — competências centrais para qualquer projeto real na DevTrilha.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o padrão de cache no Next 16 (`no-store`), o uso de `next: { revalidate }` e `tags`, a memoização/deduplicação de fetches, e o papel de `generateMetadata` para SEO.

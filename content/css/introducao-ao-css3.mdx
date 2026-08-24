@@ -1,0 +1,124 @@
+# Introdução ao CSS3
+
+**CSS (Cascading Style Sheets)** é a linguagem que controla a apresentação visual de documentos HTML: cores, espaçamentos, fontes, posicionamento e muito mais. O CSS3 é o conjunto de módulos atuais da especificação, que evoluíram o CSS de um formato simples de formatação para uma verdadeira ferramenta de layout e animação.
+
+## Por que separar estrutura e estilo
+
+HTML descreve o *significado* (o conteúdo), enquanto o CSS descreve a *aparência*. Manter essa separação traz ganhos concretos:
+
+- **Manutenção**: mudar a identidade visual de um site vira editar um arquivo, não centenas de páginas.
+- **Reutilização**: um único arquivo CSS pode estilizar milhares de documentos.
+- **Acessibilidade**: usuários podem aplicar suas próprias folhas de estilo ou aumentar a fonte sem quebrar o conteúdo.
+- **Performance**: o navegador cachesa o CSS, acelerando visitas seguintes.
+
+## Anatomia de uma regra CSS
+
+Uma regra é composta por um **seletor** (quem recebe o estilo), chaves e, dentro delas, **declarações** no formato `propriedade: valor;`.
+
+```css
+/* seletor     propriedade    valor */
+h1 {
+  color: #1a73e8;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+```
+
+Cada par `propriedade: valor` termina com ponto e vírgula. O seletor `h1` casa com todos os elementos `<h1>` do documento.
+
+## As três formas de incluir CSS
+
+### 1. Inline (atributo `style`)
+
+```html
+<p style="color: red; font-weight: bold;">Aviso urgente</p>
+```
+
+Funciona, mas mistura apresentação e conteúdo, dificulta manutenção e tem a maior especificidade possível (vence quase tudo). Use apenas para protótipos rápidos ou estilos gerados por JavaScript.
+
+### 2. Internal (tag `<style>` no `<head>`)
+
+```html
+<head>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+```
+
+Útil para uma página isolada (como um e-mail ou um relatório). Para sites reais, espalha o CSS entre as páginas e impede o cache eficiente.
+
+### 3. External (arquivo `.css` linkado)
+
+```html
+<head>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+```
+
+Esta é a **forma recomendada**. O arquivo é baixado uma vez e reaproveitado em todo o site. É o padrão que seguiremos daqui em diante.
+
+## A cascata e a herança
+
+O "C" de CSS vem de *cascading* (cascata). Quando duas regras conflitam, o navegador resolve pela ordem de prioridade:
+
+1. **Origem e importância** (declarações `!important` ganham, mas evite-as).
+2. **Especificidade** (regras mais "específicas" vencem — tema da próxima lição).
+3. **Ordem de aparecimento** (a última regra declarada ganha o empate).
+
+A **herança** é diferente: certas propriedades (como `color` e `font-family`) passam dos pais para os filhos automaticamente, enquanto propriedades de caixa (como `margin` e `border`) não.
+
+```css
+body {
+  color: #222;          /* herdado por todos os filhos */
+  margin: 0;            /* NÃO é herdado */
+}
+```
+
+## O box model em poucas palavras
+
+Todo elemento é tratado como uma caixa retangular com quatro camadas: conteúdo, padding (preenchimento interno), border (borda) e margin (espaço externo). Vamos aprofundar isso em lição dedicada, mas tenha em mente que `width` e `height` referem-se ao conteúdo por padrão.
+
+```css
+.caixa {
+  width: 200px;     /* largura do conteúdo apenas */
+  padding: 20px;    /* aumenta o tamanho total da caixa */
+  border: 2px solid #333;
+}
+```
+
+## Usando o DevTools do navegador
+
+O Inspecionar Elemento (F12 ou clique direito → "Inspecionar") é sua bancada de trabalho:
+
+- Veja as regras aplicadas a cada elemento e de onde vêm.
+- Edite valores em tempo real para testar mudanças.
+- Entenda a cascata: regras tachadas foram sobrescritas por outra mais específica.
+- A aba *Computed* mostra o box model desenhado, com valores finais de cada camada.
+
+Pratique inspecionar páginas famosas para ver como profissionais organizam seu CSS.
+
+## Boas práticas desde o início
+
+- Escreva CSS externalizado e organizado por seções comentadas.
+- Use nomes de classes em minúsculas e separados por hífen (`card-titulo`).
+- Evite `!important`; resolva conflitos com especificidade e ordem.
+- Comente pouco, mas nomeie bem: o código deve se explicar.
+
+## Armadilhas comuns
+
+- Esquecer o ponto e vírgula: a próxima declaração para de funcionar.
+- Usar `style` inline para tudo: cria um pesadelo de manutenção.
+- Achar que `width` inclui padding/border (não inclui, por padrão).
+- Não testar em mais de um navegador ou tamanho de tela.
+
+## Por isso importa
+
+CSS é o que transforma um esqueleto HTML em uma interface viva e agradável. Dominar a cascata, as formas de inclusão e o DevTools evita horas de frustração e é a base para tudo que vem a seguir — seletores, box model, Flexbox, Grid e Bootstrap.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença entre as três formas de incluir CSS, o significado da cascata e como o box model afeta o tamanho real de um elemento.

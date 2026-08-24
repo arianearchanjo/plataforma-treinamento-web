@@ -1,0 +1,210 @@
+# Funções e escopo
+
+**Funções** são blocos de código nomeados (ou anônimos) que realizam uma tarefa
+e podem ser reutilizados, recebendo dados de entrada e devolvendo um resultado.
+Elas são cidadãs de primeira classe em JavaScript: podem ser atribuídas a
+variáveis, passadas como argumento e retornadas por outras funções — o que dá
+origem a conceitos centrais como closures e escopo léxico.
+
+## Declaração de função (function declaration)
+
+```js
+function somar(a, b) {
+  return a + b;
+}
+
+console.log(somar(2, 3)); // 5
+```
+
+Funções declaradas são **içadas** (hoisted): podem ser chamadas antes da linha
+em que aparecem no código.
+
+## Expressão de função
+
+```js
+const somar = function (a, b) {
+  return a + b;
+};
+```
+
+Aqui a função é atribuída a uma variável `const`. Ela **não** é içada como
+função utilizável antes da definição.
+
+## Arrow functions (funções de seta)
+
+Introduzidas no ES6, são uma sintaxe mais curta e, importante, **não criam o
+próprio `this`**.
+
+```js
+const somar = (a, b) => a + b;
+
+// Com corpo de bloco, precisa de return explícito
+const dobrar = (x) => {
+  return x * 2;
+};
+
+// Um único parâmetro dispensa parênteses
+const triplicar = x => x * 3;
+```
+
+Use arrow functions para callbacks e quando quiser preservar o `this` do
+contexto externo.
+
+## Parâmetros e argumentos
+
+```js
+function cumprimentar(nome, saudacao = "Olá") {
+  return `${saudacao}, ${nome}!`;
+}
+
+console.log(cumprimentar("Ana"));          // Olá, Ana!
+console.log(cumprimentar("Beto", "Oi"));   // Oi, Beto!
+```
+
+### Parâmetros com valor padrão
+
+Se o argumento for `undefined`, o padrão entra em ação. Valores `null` NÃO
+disparam o padrão.
+
+```js
+function config({ tema = "dark", nome = "usuário" } = {}) {
+  return `Tema ${tema} para ${nome}`;
+}
+```
+
+### Parâmetro rest (`...`)
+
+Coleta argumentos "sobrando" em um array.
+
+```js
+function somarTudo(...numeros) {
+  return numeros.reduce((acc, n) => acc + n, 0);
+}
+
+somarTudo(1, 2, 3, 4); // 10
+```
+
+## O retorno (`return`)
+
+Uma função sem `return` devolve `undefined`. `return` também encerra a execução.
+
+```js
+function maioridade(idade) {
+  if (idade >= 18) return "adulto";
+  return "menor";
+}
+```
+
+Cuidado com a quebra de linha antes do `return` — o JavaScript insere um `;`
+automático:
+
+```js
+function quebrada() {
+  return
+    { ok: true }; // retorna undefined! o objeto fica "órfão"
+}
+```
+
+## Escopo léxico
+
+O escopo de uma função é definido **pelo lugar onde ela foi escrita**, não onde
+é chamada. Ela "enxerga" as variáveis ao seu redor na definição.
+
+```js
+const mensagem = "externa";
+
+function mostrar() {
+  console.log(mensagem); // enxerga a variável do escopo externo
+}
+
+mostrar(); // "externa"
+```
+
+## Closures
+
+Uma **closure** é uma função que "lembra" do escopo onde foi criada, mesmo
+depois dele ter sido encerrado. É o mecanismo por trás de encapsulamento e
+funções de fábrica.
+
+```js
+function criarContador() {
+  let count = 0;
+  return function () {
+    count += 1;
+    return count;
+  };
+}
+
+const contador = criarContador();
+console.log(contador()); // 1
+console.log(contador()); // 2
+console.log(contador()); // 3
+```
+
+O `count` fica "preso" dentro da closure, protegido de acesso externo direto —
+um padrão clássico de estado privado.
+
+## O `this`
+
+`this` é o objeto ao qual a função está "vinculada" no momento da chamada. Ele
+muda conforme o contexto, e é uma das maiores fontes de confusão em JS.
+
+```js
+const usuario = {
+  nome: "Ana",
+  saudacao: function () {
+    return `Olá, ${this.nome}`;
+  },
+};
+
+console.log(usuario.saudacao()); // Olá, Ana (this = usuario)
+```
+
+### Arrow functions e `this`
+
+Arrow functions **não têm** `this` próprio: elas herdam o `this` do escopo
+circundante. Isso as torna ideais para métodos que usam callbacks.
+
+```js
+const usuario = {
+  nome: "Ana",
+  tarefas: ["ler", "codar"],
+  listar() {
+    this.tarefas.forEach((t) => {
+      // arrow herda this de listar()
+      console.log(`${this.nome}: ${t}`);
+    });
+  },
+};
+
+usuario.listar();
+```
+
+## Boas práticas
+
+- Prefira arrow functions para callbacks e `function` para métodos de objeto.
+- Mantenha funções pequenas e com uma única responsabilidade.
+- Use nomes que descrevem a ação (`calcularTotal`, `validarEmail`).
+- Evite efeitos colaterais em funções puras; prefira retornar valores.
+- Use destructuring em parâmetros de objeto para clareza.
+
+## Armadilhas comuns
+
+- Perder o `this` em callbacks (solução: arrow function ou `.bind`).
+- Esquecer o `return` em funções que deveriam devolver valor.
+- A quebra de linha acidental após `return`.
+- Achar que arrow function substitui `function` em todos os casos (métodos que
+  usam `this` precisam de `function`).
+
+## Por isso importa
+
+Funções são o bloco de construção da lógica em JavaScript: quase tudo — de
+closures a programação assíncrona, de React a Node — gira em torno delas.
+Compreender escopo léxico e o comportamento do `this` elimina uma das classes
+mais frustrantes de bugs e abre portas para padrões avançados de composição.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença
+entre declaração e expressão, arrow functions e o `this`, parâmetros rest e
+default, closures e escopo léxico.

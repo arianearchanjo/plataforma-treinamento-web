@@ -1,0 +1,215 @@
+# Testando lógica de servidor
+
+> Módulo 12 · Vitest
+
+**A lógica de servidor** — funções puras de negócio, Route Handlers e acessos a
+banco — é onde moram as regras que não podem falhar. Testá-la com Vitest é mais
+fácil quando separamos o que é puro (não depende de I/O) do que toca o banco ou
+a rede. Nesta lição veremos como testar funções puras, Route Handlers com
+`Request`/`Response` e como isolar o Prisma com mocks.
+
+## Testando funções puras
+
+Uma função pura recebe entradas e devolve saída sem efeitos colaterais. Ela é o
+alvo mais fácil e valioso de teste. No DevTrilha, o `corrigirQuiz` de
+`src/lib/corrigir-quiz.ts` é exatamente isso: recebe as perguntas (com o
+gabarito) e as respostas do usuário, e calcula acertos e nota. Não toca banco,
+não usa framework — só matemática e comparação.
+
+```ts
+// src/lib/corrigir-quiz.ts (resumo)
+export const NOTA_MINIMA_PERCENTUAL = 70;
+
+export function corrigirQuiz(perguntas, respostas) {
+  const porPergunta = perguntas.map((pergunta) => {
+    const escolhida = respostas[String(pergunta.id)];
+    const existe = pergunta.alternativas.some((a) => a.id === escolhida);
+    const gabarito = pergunta.alternativas.find((a) => a.correta) ?? null;
+    return {
+      perguntaId: pergunta.id,
+      respondida: existe,
+      correta: existe && gabarito !== null && escolhida === gabarito.id,
+      alternativaEscolhidaId: existe ? escolhida : null,
+      alternativaCorretaId: gabarito?.id ?? null,
+    };
+  });
+  const total = perguntas.length;
+  const acertos = porPergunta.filter((p) => p.correta).length;
+  const notaPercentual = total === 0 ? 0 : Math.round((acertos / total) * 100);
+  return {
+    total,
+    acertos,
+    notaPercentual,
+    aprovado: total > 0 && notaPercentual >= NOTA_MINIMA_PERCENTUAL,
+    porPergunta,
+  };
+}
+```
+
+Um teste real desse arquivo, como existe em `src/lib/corrigir-quiz.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { corrigirQuiz, NOTA_MINIMA_PERCENTUAL } from "./corrigir-quiz";
+
+const perguntas = [
+  { id: 1, alternativas: [
+    { id: 11, correta: false },
+    { id: 12, correta: true },
+  ]},
+  { id: 2, alternativas: [
+    { id: 21, correta: true },
+    { id: 22, correta: false },
+  ]},
+];
+
+describe("corrigirQuiz", () => {
+  it("aprova quando todas batem com o gabarito", () => {
+    const r = corrigirQuiz(perguntas, { "1": 12, "2": 21 });
+    expect(r).toMatchObject({ total: 2, acertos: 2, notaPercentual: 100, aprovado: true });
+  });
+
+  it("exige nota >= 70% para aprovar", () => {
+    const abaixo = corrigirQuiz(perguntas, { "1": 12, "2": 22 });
+    expect(abaixo.notaPercentual).toBeLessThan(NOTA_MINIMA_PERCENTUAL);
+    expect(abaixo.aprovado).toBe(false);
+  });
+
+  it("trata alternativa inexistente como não respondida", () => {
+    const r = corrigirQuiz(perguntas, { "1": 999, "2": 21 });
+    expect(r.porPergunta[0]).toMatchObject({ respondida: false, correta: false });
+  });
+});
+```
+
+Repare: a função recebe tudo por parâmetro, então o teste é só "dê entradas,
+espere saídas". Isso é o ideal.
+
+## Testando Route Handlers
+
+No Next.js App Router, os endpoints em `app/api/.../route.ts` recebem objetos
+`Request` e devolvem `Response`. O Vitest (com `jsdom` ou `node`) pode
+instanciar esses objetos nativos do web standard:
+
+```ts
+// app/api/quiz/[id]/responder/route.ts (esqueleto)
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const body = await req.json();
+  const resultado = corrigirQuiz(/* ... */);
+  return Response.json(resultado);
+}
+```
+
+```ts
+import { describe, expect, it } from "vitest";
+import { POST } from "./route";
+
+describe("POST /api/quiz/:id/responder", () => {
+  it("retorna o resultado em JSON", async () => {
+    const req = new Request("http://localhost/api/quiz/1/responder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respostas: { "1": 12 } }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "1" }) });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveProperty("notaPercentual");
+  });
+});
+```
+
+O `Response.json` e o `Request` são padrão web, então funcionam sem jsdom. Isso
+torna o teste leve e rápido.
+
+## Mock do Prisma com `vi.mock`
+
+Quando a função de servidor consulta o banco, você não quer bater no Postgres
+real. Use `vi.mock` para substituir o módulo do Prisma por um dublê:
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    quiz: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: 1,
+        perguntas: [{ id: 1, alternativas: [{ id: 11, correta: true }] }],
+      }),
+    },
+  },
+}));
+
+import { buscarQuiz } from "./buscarQuiz";
+
+describe("buscarQuiz", () => {
+  it("retorna o quiz do banco (mockado)", async () => {
+    const quiz = await buscarQuiz(1);
+    expect(quiz.id).toBe(1);
+  });
+});
+```
+
+`vi.mock` é erguido (hoisted): a substituição vale para todo o arquivo de teste,
+antes dos imports. Use `vi.mocked(prisma.quiz.findUnique).mockResolvedValue(...)`
+para mudar o retorno por teste.
+
+## Isolamento e ciclo de vida
+
+Para evitar que um teste influencie o outro, use `beforeEach`/`afterEach`:
+
+```ts
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+describe("servico de quiz", () => {
+  beforeEach(() => {
+    // estado inicial antes de cada teste
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // limpeza: restaurar mocks, fechar conexões
+    vi.restoreAllMocks();
+  });
+
+  it("faz algo isolado", () => {
+    expect(true).toBe(true);
+  });
+});
+```
+
+- `beforeEach`: prepara dados, reseta mocks, cria instâncias.
+- `afterEach`: limpa o que o teste criou (evita vazamento de estado).
+- `beforeAll`/`afterAll`: abrir/fechar conexão única de banco de teste.
+
+## Testes de integração leve
+
+Se quiser testar a "ponta a ponta" sem banco real, use um banco em memória ou
+transações que rollback. Um exemplo leve: testar `corrigirQuiz` + o handler
+juntos, com o Prisma mockado no handler. O foco é garantir que a cola entre
+função pura e Route Handler funciona, sem dependência externa.
+
+## Boas práticas de servidor
+
+- Mantenha a regra de negócio em função pura (como `corrigirQuiz`) para testar
+  sem I/O.
+- Mock só o limite externo (banco, fetch), não a lógica que você está testando.
+- Use `Request`/`Response` reais — evita acoplar a detalhes do Next.
+- Garanta isolamento com `beforeEach`/`afterEach` para testes determinísticos.
+
+## Por isso importa
+
+A lógica de servidor é onde decisões críticas acontecem: notas, permissões,
+cálculos. Separá-la em funções puras (testáveis em milissegundos) e isolar o
+banco com `vi.mock` permite cobrir essas regras com confiança e velocidade. O
+próprio `corrigirQuiz` do DevTrilha é a prova de que uma boa arquitetura torna o
+teste trivial.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: por que
+`corrigirQuiz` é fácil de testar, como usar `Request`/`Response` em Route
+Handlers, como `vi.mock` isola o Prisma, e a diferença entre `beforeEach` e
+`afterEach` para manter testes isolados.

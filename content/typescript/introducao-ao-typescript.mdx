@@ -1,0 +1,186 @@
+# Introdução ao TypeScript
+
+**TypeScript** é um superset do JavaScript criado pela Microsoft que adiciona
+tipagem estática opcional à linguagem. Ele existe para dar ao desenvolvedor
+ferramentas que pegam erros antes do código rodar — no editor e na compilação —
+deixando aplicações grandes muito mais seguras e fáceis de manter.
+
+## Por que o TypeScript existe?
+
+JavaScript é uma linguagem de tipagem dinâmica: o tipo de uma variável é
+decidido em tempo de execução. Isso dá flexibilidade, mas também abre espaço
+para erros bobos que só aparecem quando o usuário já está usando a aplicação.
+
+```js
+function soma(a, b) {
+  return a + b;
+}
+
+soma(2, 2);        // 4
+soma(2, "2");      // "22"  <- concatena em vez de somar, sem avisar nada
+```
+
+O TypeScript adiciona um sistema de tipos por cima do JavaScript. O código
+acima, tipado, recusa a segunda chamada antes mesmo de executar:
+
+```ts
+function soma(a: number, b: number): number {
+  return a + b;
+}
+
+soma(2, "2"); // Erro: o argumento do tipo 'string' não é atribuível a 'number'
+```
+
+Principais motivos para usá-lo:
+
+- **Detecção de erros antecipada**: bugs de tipo aparecem no editor, não em produção.
+- **Autocompletar inteligente**: o editor sabe os formatos dos seus dados.
+- **Documentação viva**: os tipos descrevem a forma das funções e objetos.
+- **Refatoração segura**: renomear ou mudar uma assinatura avisa todos os pontos de uso.
+
+## TypeScript é um superset, não uma linguagem nova
+
+Todo arquivo JavaScript válido também é um arquivo TypeScript válido. O
+TypeScript apenas permite anotações extras que o JavaScript ignora. Por isso a
+migração costuma ser gradual: você pode renomear `.js` para `.ts` e tipar
+devagar.
+
+No entanto, o navegador e o Node.js **não entendem TypeScript**. Ele precisa ser
+convertido (transpilado) para JavaScript comum antes de rodar. É aí que entra o
+compilador `tsc`.
+
+## Instalando e compilando
+
+Instale como dependência de desenvolvimento:
+
+```bash
+npm i -D typescript
+```
+
+Crie o arquivo de configuração com um comando só:
+
+```bash
+npx tsc --init
+```
+
+Isso gera um `tsconfig.json` cheio de opções comentadas. Você pode compilar um
+arquivo assim:
+
+```bash
+npx tsc meu-arquivo.ts
+```
+
+O comando gera um `meu-arquivo.js` equivalente ao lado. Em projetos reais, o
+`tsc` lê o `tsconfig.json` e compila tudo de uma vez (ou ferramentas como o
+`tsx`/`vite` cuidam disso no desenvolvimento).
+
+## O tsconfig.json essencial
+
+O `tsconfig.json` controla como o compilador se comporta. Três opções importam
+no começo:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "strict": true
+  }
+}
+```
+
+- **target**: para qual versão do JavaScript o código será transpilado (por
+  exemplo, `ES2022` ou `ES6`). Define quais recursos da linguagem precisam ser
+  "feitos para baixo" para navegadores antigos.
+- **module**: o sistema de módulos usado na saída (`CommonJS`, `ESNext`, etc.).
+- **strict**: liga um conjunto de verificações rigorosas de tipo. Deixe sempre
+  `true` em projetos novos — ele é seu maior aliado contra bugs.
+
+Com `strict: true`, o TypeScript passa a exigir que você trate valores que podem
+ser `null` ou `undefined`, entre outras proteções.
+
+## Tipos primitivos básicos
+
+TypeScript reconhece os mesmos primitivos do JavaScript, com anotações simples:
+
+- `string` — texto
+- `number` — números (inteiros e decimais, sem separar `int`/`float`)
+- `boolean` — verdadeiro/falso
+- `null` e `undefined` — ausência de valor
+- `object`, `array`, e tipos mais avançados que veremos em lições seguintes
+
+```ts
+let nome: string = "Ana";
+let idade: number = 29;
+let ativo: boolean = true;
+let nulo: null = null;
+let indefinido: undefined = undefined;
+```
+
+## Anotando tipos em variáveis
+
+A sintaxe de anotação é `variavel: Tipo`. Você pode anotar tanto em `let`/`const`
+quanto em parâmetros de função:
+
+```ts
+const cidade: string = "São Paulo";
+
+function cumprimentar(pessoa: string): string {
+  return `Olá, ${pessoa}!`;
+}
+```
+
+Quando você anota um tipo, o compilador impede atribuições incompatíveis:
+
+```ts
+let contagem: number = 10;
+contagem = "dez"; // Erro: 'string' não é atribuível a 'number'
+```
+
+## Erros em tempo de compilação vs runtime
+
+É fundamental entender a divisão de responsabilidades:
+
+- **Tempo de compilação** (TypeScript): o `tsc` analisa os tipos e aponta erros
+  antes de gerar o JavaScript. Esses erros não existem mais no arquivo final.
+- **Tempo de execução** (JavaScript): é quando o código realmente roda. O
+  TypeScript some aqui — não há checagem de tipo em runtime por padrão.
+
+```ts
+function dividir(a: number, b: number): number {
+  return a / b;
+}
+
+dividir(10, 0); // Compila sem erro, mas em runtime dá Infinity
+```
+
+Ou seja: o TypeScript protege contra erros de tipo, mas não contra erros
+lógicos. Validações de negócio (ex.: divisão por zero, dados inválidos de uma
+API) continuam sendo sua responsabilidade em runtime.
+
+## Integração com editores
+
+A grande vantagem do TypeScript aparece no editor (VS Code, Neovim, etc.):
+
+- Sublinhado vermelho imediato quando você passa o tipo errado.
+- Autocompletar que mostra propriedades de um objeto conforme você digita.
+- "Ir para definição" e renomeação segura em todo o projeto.
+
+Tudo isso funciona porque o editor roda o mesmo serviço de linguagem (`tsserver`)
+que o compilador. Por isso vale a pena manter o `tsconfig.json` bem configurado
+e os tipos corretos desde o início.
+
+## Por isso importa
+
+TypeScript é hoje o padrão da indústria para aplicações JavaScript sérias. Ele
+não substitui o JavaScript: é uma camada que o torna previsível. Dominar a
+instalação, o `tsconfig.json` e a anotação de tipos básicos é o primeiro passo
+para escrever código que não quebra de surpresa — e que outras pessoas conseguem
+ler e manter com confiança.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que é o
+TypeScript (e por que é um superset), o papel do compilador `tsc`, as opções
+essenciais do `tsconfig.json` e a diferença entre erros de compilação e de
+execução.

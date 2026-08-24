@@ -1,0 +1,178 @@
+# CSS Grid Layout
+
+**CSS Grid** é um sistema de layout bidimensional do CSS, capaz de controlar simultaneamente linhas e colunas de forma explícita. Enquanto o Flexbox brilha em uma dimensão, o Grid foi feito para estruturas completas de página, com trilhas, áreas nomeadas e alinhamento preciso.
+
+## Ligando o grid
+
+```css
+.container {
+  display: grid;
+}
+```
+
+Os filhos diretos viram **itens de grid**, posicionados automaticamente nas células criadas.
+
+## Definindo colunas e linhas
+
+```css
+.container {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr;   /* 3 colunas */
+  grid-template-rows: auto 300px;         /* 2 linhas */
+  gap: 16px;
+}
+```
+
+Aqui criamos três colunas: uma fixa de 200px e duas flexíveis (`1fr` cada). A unidade `fr` (fração) distribui o espaço *restante* proporcionalmente.
+
+## A unidade `fr`
+
+`fr` representa uma fração do espaço livre do contêiner, após descontar tamanhos fixos:
+
+```css
+.container {
+  grid-template-columns: 1fr 2fr;   /* a 2ª coluna tem o dobro da 1ª */
+}
+```
+
+Combine `fr` com pixels para layouts mistos (sidebar fixa + conteúdo fluido).
+
+## repeat(), auto-fit e minmax()
+
+Evite escrever colunas à mão repetidas:
+
+```css
+.container {
+  grid-template-columns: repeat(4, 1fr);        /* 4 colunas iguais */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+```
+
+`auto-fit` + `minmax` cria um grid **responsivo automático**: cabem quantas colunas de no mínimo 200px couberem, e elas se expandem para preencher. Sem media queries!
+
+## Posicionando itens pela linha
+
+Grid cria linhas numeradas (1, 2, 3...) nas bordas das trilhas. Você pode colocar um item num intervalo:
+
+```css
+.destaque {
+  grid-column: 1 / 3;    /* da linha 1 à 3 (ocupa 2 colunas) */
+  grid-row: 1 / 2;
+}
+```
+
+`span` ajuda a dizer "ocupe N células":
+
+```css
+.destaque {
+  grid-column: span 2;
+}
+```
+
+## Áreas nomeadas: o grid legível
+
+A forma mais intuitiva de montar layouts:
+
+```css
+.pagina {
+  display: grid;
+  grid-template-areas:
+    "cabecalho cabecalho"
+    "sidebar   conteudo"
+    "rodape    rodape";
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  min-height: 100vh;
+}
+
+.cabecalho { grid-area: cabecalho; }
+.sidebar   { grid-area: sidebar; }
+.conteudo  { grid-area: conteudo; }
+.rodape    { grid-area: rodape; }
+```
+
+Cada item recebe `grid-area` com o nome da área. Reorganizar o layout vira rearrumar strings — perfeito para responsividade.
+
+## Alinhamento: align e justify
+
+No grid existem duas variantes:
+
+- `justify-items` / `align-items`: alinham os itens *dentro* de suas células.
+- `justify-content` / `align-content`: alinham o *próprio grid* quando ele é menor que o contêiner.
+
+```css
+.container {
+  justify-items: stretch;   /* padrão: ocupa a célula */
+  align-items: center;      /* vertical centralizado na célula */
+}
+```
+
+Por item, use `justify-self` e `align-self`.
+
+## Exemplo responsivo com areas
+
+```css
+.pagina {
+  display: grid;
+  grid-template-areas: "cabecalho" "conteudo" "sidebar" "rodape";
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .pagina {
+    grid-template-areas:
+      "cabecalho cabecalho"
+      "sidebar   conteudo"
+      "rodape    rodape";
+    grid-template-columns: 220px 1fr;
+  }
+}
+```
+
+No mobile, tudo empilha; no desktop, ganha sidebar.
+
+## Exemplo: galeria automática
+
+```css
+.galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.galeria img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+```
+
+## Grid vs Flexbox
+
+- **Grid**: bidimensional, ótimo para a estrutura da página e áreas.
+- **Flexbox**: unidimensional, ótimo para alinhar itens numa linha/coluna.
+
+Na prática, use Grid para o esqueleto e Flexbox dentro das células (ex.: alinhar botões dentro de um card).
+
+## Boas práticas
+
+- Comece pelo `grid-template-columns`; linhas podem ser automáticas.
+- Use `auto-fit` + `minmax` para grids fluidos sem media queries.
+- Prefira `grid-template-areas` para layouts legíveis e fáceis de rearranjar.
+- Combine Grid (estrutura) com Flexbox (detalhes internos).
+
+## Armadilhas comuns
+
+- Esperar que `fr` resolva tudo: combine com `minmax` para não espremer conteúdo.
+- Confundir `justify-items` (itens na célula) com `justify-content` (grid no contêiner).
+- Esquecer de definir altura mínima quando usa `1fr` em linhas.
+- Nomear áreas com nomes diferentes de `grid-area`, quebrando o mapa.
+
+## Por isso importa
+
+Grid é o padrão moderno para montar páginas inteiras com pouquíssimo código e total controle. Dominá-lo significa criar layouts responsivos elegantes — muitas vezes sem uma única media query — e construir a base sobre a qual frameworks como o Bootstrap aplicam seus sistemas de colunas.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que é a unidade `fr`, como `repeat(auto-fit, minmax())` cria responsividade, e a diferença entre Grid e Flexbox.

@@ -1,0 +1,230 @@
+# Introdução ao Better-Auth
+
+**Better-Auth é uma biblioteca de autenticação escrita em TypeScript, agnóstica de framework e pensada para rodar no seu próprio banco. Você não terceiriza usuários para um SaaS: as tabelas são suas, o código é seu, e os tipos acompanham cada plugin que você habilita.**
+
+Nesta lição vamos entender a filosofia da biblioteca, instalar, criar o `auth.ts`, ligar ao Prisma, expor o handler em `/api/auth/[...all]` e criar o cliente React.
+
+## O problema da autenticação
+
+Autenticar parece simples — comparar e-mail e senha — até você listar o que um sistema real precisa:
+
+- hash de senha com algoritmo moderno e fator de custo adequado;
+- sessões com cookies `httpOnly`, `secure` e `sameSite` corretos;
+- expiração, renovação e revogação de sessão;
+- proteção contra CSRF e validação de origem;
+- verificação de e-mail, recuperação de senha, login social, 2FA;
+- schema de banco para usuário, conta, sessão e token.
+
+Escrever isso à mão é o caminho mais curto para uma falha de segurança. Better-Auth entrega essas peças com padrões seguros já ligados.
+
+## Filosofia
+
+- **TypeScript primeiro.** A instância `auth` que você cria é a fonte dos tipos; o cliente infere métodos a partir dela.
+- **Agnóstica de framework.** O núcleo trabalha com `Request`/`Response` da Web API. Next.js, Hono, Express, SvelteKit — todos plugam.
+- **Seu banco, suas tabelas.** Adaptadores para Prisma, Drizzle, Kysely ou acesso direto.
+- **Plugins compõem.** Sessão e credenciais no núcleo; organizações, 2FA, passkeys, magic link, admin entram como plugins e trazem seus próprios endpoints, tipos e tabelas.
+- **Sessões, não só JWT.** O padrão é sessão em banco com cookie — revogável de verdade, ao contrário de um token assinado que vale até expirar.
+
+## Comparando com alternativas
+
+- **NextAuth/Auth.js**: forte em OAuth, mas historicamente mais amarrado ao Next.js e com credenciais/senha propositalmente limitadas.
+- **Clerk/Auth0**: excelentes serviços gerenciados, com custo por usuário e dados fora do seu banco.
+- **Better-Auth**: self-hosted, tipado, com email/senha de primeira classe e extensível por plugins.
+
+## Instalação
+
+```bash
+npm install better-auth
+npm install @better-auth/prisma-adapter
+```
+
+Gere um segredo e configure o `.env`:
+
+```bash
+BETTER_AUTH_SECRET="cole-aqui-uma-string-aleatoria-longa"
+BETTER_AUTH_URL="http://localhost:3000"
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/devtrilha?schema=public"
+```
+
+- `BETTER_AUTH_SECRET` assina cookies e tokens. Trate como senha: aleatório, longo, diferente por ambiente. Pode ser gerado com `openssl rand -base64 32`.
+- `BETTER_AUTH_URL` é a URL base pública da aplicação — usada em callbacks e links de e-mail.
+
+## O arquivo `auth.ts`
+
+Esta é a configuração real do projeto, em `src/lib/auth.ts`:
+
+```ts
+import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { betterAuth } from "better-auth";
+import { prisma } from "./prisma";
+
+const trustedOrigins = [
+  process.env.BETTER_AUTH_URL,
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+].filter((origin): origin is string => Boolean(origin));
+
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins,
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+});
+```
+
+Cada opção:
+
+- **`baseURL`** — onde a aplicação está publicada.
+- **`trustedOrigins`** — origens autorizadas a enviar requisições autenticadas. É a defesa contra CSRF; requisições de origem desconhecida são recusadas. Em produção, liste apenas o domínio real.
+- **`database`** — o adaptador. Aqui reaproveitamos o singleton do Prisma, que por sua vez usa o driver adapter `@prisma/adapter-pg`.
+- **`emailAndPassword`** — habilita o método de credenciais (assunto da próxima lição).
+
+O tipo exportado `typeof auth` carrega tudo que foi habilitado. Se você adicionar um plugin, o cliente ganha os métodos correspondentes automaticamente.
+
+## O schema de autenticação
+
+Better-Auth precisa de quatro tabelas no núcleo:
+
+- **`user`** — id, nome, e-mail, `emailVerified`, imagem, timestamps;
+- **`session`** — token, `expiresAt`, `userId`, `ipAddress`, `userAgent`;
+- **`account`** — credenciais e contas externas; é onde vive o hash da senha e os tokens de OAuth;
+- **`verification`** — tokens temporários (verificar e-mail, redefinir senha).
+
+Para gerar os models no `schema.prisma`:
+
+```bash
+npx @better-auth/cli generate
+```
+
+O comando lê seu `auth.ts`, descobre o que está habilitado (incluindo plugins) e escreve os models. Depois é o fluxo normal do Prisma:
+
+```bash
+npx prisma migrate dev --name better_auth
+```
+
+Note a separação: usuário fica em `user`, e o **hash da senha** fica em `account`. Isso permite que o mesmo usuário tenha senha *e* login com Google sem duplicar registros.
+
+## O handler da API
+
+Todo o backend de auth é um único Route Handler que captura qualquer sub-rota. Em `src/app/api/auth/[...all]/route.ts`:
+
+```ts
+import { toNextJsHandler } from "better-auth/next-js";
+import { auth } from "@/lib/auth";
+
+export const { GET, POST } = toNextJsHandler(auth);
+```
+
+Três linhas e você tem `/api/auth/sign-up/email`, `/api/auth/sign-in/email`, `/api/auth/sign-out`, `/api/auth/get-session` e todos os endpoints dos plugins.
+
+O `[...all]` é um segmento *catch-all* do App Router: ele casa com qualquer profundidade de caminho abaixo de `/api/auth`. Sem isso, cada endpoint precisaria de um arquivo.
+
+Se você não usa o helper do Next, o núcleo expõe um handler Web padrão:
+
+```ts
+export const GET = (request: Request) => auth.handler(request);
+export const POST = (request: Request) => auth.handler(request);
+```
+
+## O cliente
+
+Em `src/lib/auth-client.ts`:
+
+```ts
+import { createAuthClient } from "better-auth/react";
+
+export const authClient = createAuthClient();
+```
+
+Sem `baseURL`, o cliente assume mesma origem e chama `/api/auth/*` — o que é exatamente o que queremos numa app Next.js monolítica. Se o backend estivesse em outro domínio:
+
+```ts
+export const authClient = createAuthClient({
+  baseURL: "https://api.devtrilha.dev",
+});
+```
+
+O que o cliente oferece:
+
+```ts
+authClient.signUp.email({ name, email, password });
+authClient.signIn.email({ email, password });
+authClient.signOut();
+authClient.useSession();      // hook reativo do React
+authClient.getSession();      // leitura pontual
+```
+
+Se preferir imports nomeados:
+
+```ts
+export const { signIn, signUp, signOut, useSession } = authClient;
+```
+
+## Servidor vs cliente
+
+Duas superfícies, propósitos diferentes:
+
+- **`auth`** (servidor) — importe em Server Components, Route Handlers e Server Actions. Tem `auth.api.*` para chamar qualquer endpoint sem passar pela rede.
+- **`authClient`** (navegador) — importe em Client Components. Faz `fetch` para `/api/auth/*` e gerencia estado reativo.
+
+Nunca importe `auth` em um Client Component: ele carrega o Prisma e o segredo do servidor. O Next.js provavelmente vai reclamar, mas a regra mental é simples — segredo nenhum atravessa o bundle do navegador.
+
+## Verificando a instalação
+
+```tsx
+// src/app/debug-sessao/page.tsx
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+
+export default async function DebugSessao() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  return (
+    <pre>{JSON.stringify(session, null, 2)}</pre>
+  );
+}
+```
+
+Sem login, você recebe `null`. Depois de autenticar, aparece `{ user, session }`. É o teste mais rápido de que handler, cookie e banco estão conversando.
+
+## Plugins: o próximo passo
+
+```ts
+import { betterAuth } from "better-auth";
+import { twoFactor, organization } from "better-auth/plugins";
+
+export const auth = betterAuth({
+  // ...
+  plugins: [twoFactor(), organization()],
+});
+```
+
+E no cliente, os plugins correspondentes:
+
+```ts
+import { twoFactorClient } from "better-auth/client/plugins";
+
+export const authClient = createAuthClient({
+  plugins: [twoFactorClient()],
+});
+```
+
+Cada plugin pode adicionar tabelas — então rode `@better-auth/cli generate` e uma migration depois de habilitá-lo.
+
+## Por isso importa
+
+Autenticação é a porta da frente do seu produto: se estiver mal feita, nada mais importa. Better-Auth dá padrões seguros com controle total dos dados e um caminho de crescimento claro — começa com email/senha, depois OAuth, 2FA e organizações, sem reescrever o que já funciona. E porque tudo passa pelos tipos, adicionar um recurso de auth deixa de ser um exercício de ler documentação e adivinhar nomes de campos.
+
+## Quiz
+
+O quiz aborda o papel do `auth.ts` como fonte da verdade, por que o handler usa a rota catch-all `[...all]` e a divisão entre a instância de servidor (`auth`) e o cliente (`authClient`).
+
+Revise também para que serve `trustedOrigins`, qual tabela guarda o hash da senha e por que o adaptador do Prisma reaproveita o mesmo singleton `prisma` da aplicação.

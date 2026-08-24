@@ -1,0 +1,197 @@
+# DOM e manipulação
+
+**DOM (Document Object Model)** é a representação em árvore do seu HTML que o
+navegador cria e expõe ao JavaScript, permitindo ler, criar, alterar e remover
+elementos da página em tempo real. É através do DOM que uma página estática
+ganha vida: botões que reagem, listas que crescem e formulários que validam
+enquanto o usuário digita.
+
+## O objeto `document`
+
+`document` é o ponto de entrada para tudo no DOM. Ele representa a página
+inteira.
+
+```js
+console.log(document.title);          // título da aba
+console.log(document.body);           // elemento <body>
+console.log(document.documentElement);// elemento <html>
+```
+
+## Selecionando elementos
+
+Existem várias formas; as modernas e recomendadas são `querySelector` e
+`querySelectorAll`, além do clássico `getElementById`.
+
+```js
+// Por id
+const botao = document.getElementById("enviar");
+
+// Por seletor CSS (primeiro que encontrar)
+const titulo = document.querySelector("h1");
+const primeiroItem = document.querySelector(".lista li");
+
+// Todos os que corresponderem (NodeList)
+const itens = document.querySelectorAll(".lista li");
+itens.forEach((li) => console.log(li.textContent));
+
+// Por classe ou tag
+document.getElementsByClassName("card");
+document.getElementsByTagName("p");
+```
+
+`querySelector` aceita qualquer seletor CSS válido, o que o torna muito
+flexível. `getElementById` é ligeiramente mais rápido, mas limitado a IDs.
+
+## Lendo e alterando conteúdo
+
+```js
+const titulo = document.querySelector("h1");
+
+// textContent: seguro, trata tudo como texto
+titulo.textContent = "Novo título";
+
+// innerHTML: interpreta HTML (cuidado com segurança!)
+titulo.innerHTML = "<em>Texto em itálico</em>";
+```
+
+### `textContent` vs `innerHTML`
+
+| Propriedade    | Comportamento                          | Segurança            |
+| -------------- | -------------------------------------- | -------------------- |
+| `textContent`  | insere como texto puro                 | ✅ seguro            |
+| `innerHTML`    | interpreta como HTML                   | ⚠️ risco de XSS     |
+
+```js
+// ✅ seguro: usuário não consegue injetar tags
+element.textContent = usuarioDigitou;
+
+// ❌ perigoso: se usuarioDigitou for "<img src=x onerror=alert(1)>", roda script
+element.innerHTML = usuarioDigitou;
+```
+
+## Alterando atributos e classes
+
+```js
+const link = document.querySelector("a");
+
+link.href = "https://exemplo.com";
+link.setAttribute("target", "_blank");
+link.getAttribute("href");
+
+// Classes: prefira classList
+const card = document.querySelector(".card");
+card.classList.add("ativo");
+card.classList.remove("inativo");
+card.classList.toggle("selecionado"); // alterna
+card.classList.contains("ativo");     // true/false
+```
+
+`classList` é preferível a mexer na string `className`, pois evita sobrescrever
+outras classes por engano.
+
+## Criando e removendo nós
+
+```js
+// Criar
+const li = document.createElement("li");
+li.textContent = "Novo item";
+document.querySelector(".lista").appendChild(li);
+
+// Inserir antes de um elemento de referência
+const lista = document.querySelector(".lista");
+lista.insertBefore(li, lista.firstChild);
+
+// Remover
+li.remove();                 // moderno e simples
+lista.removeChild(li);       // forma clássica
+```
+
+Para inserir HTML como nó, use `insertAdjacentHTML` (mais eficiente que
+`innerHTML =` repetido), mas sempre sanitize dados do usuário.
+
+```js
+lista.insertAdjacentHTML("beforeend", "<li>Item</li>");
+```
+
+## Estilizando via JS
+
+```js
+const box = document.querySelector(".box");
+box.style.backgroundColor = "tomato";
+box.style.padding = "1rem";
+```
+
+Prefira manipular classes (que apontam para CSS) a estilos inline sempre que
+possível — separa apresentação de comportamento.
+
+## Segurança: evitando XSS
+
+**XSS (Cross-Site Scripting)** ocorre quando dados não confiáveis são inseridos
+na página como HTML, permitindo execução de scripts maliciosos. A regra de ouro:
+
+```js
+// ✅ sempre use textContent para dados do usuário
+element.textContent = dadoDoUsuario;
+
+// ✅ se precisar de HTML, sanitize com biblioteca (ex.: DOMPurify)
+import DOMPurify from "dompurify";
+element.innerHTML = DOMPurify.sanitize(htmlDoUsuario);
+```
+
+Nunca concatene dados do usuário direto no `innerHTML` ou em `src`/`href` sem
+validação. Em frameworks modernos (React, etc.) a interpolação já escapa por
+padrão, mas no DOM puro você é responsável por isso.
+
+## Exemplo prático: lista dinâmica
+
+```html
+<input id="tarefa" placeholder="Digite uma tarefa" />
+<button id="add">Adicionar</button>
+<ul id="lista"></ul>
+
+<script>
+  const input = document.getElementById("tarefa");
+  const botao = document.getElementById("add");
+  const lista = document.getElementById("lista");
+
+  botao.addEventListener("click", () => {
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    const li = document.createElement("li");
+    li.textContent = texto; // seguro
+    lista.appendChild(li);
+    input.value = "";
+    input.focus();
+  });
+</script>
+```
+
+## Boas práticas
+
+- Cacheie referências de elementos que você usa várias vezes.
+- Prefira `textContent` a `innerHTML` para textos.
+- Use `classList` em vez de mexer em `className`.
+- Faça alterações em lote quando possível para evitar reflows desnecessários.
+- Separe estilo em CSS; JS só adiciona/remove classes.
+
+## Armadilhas comuns
+
+- Tentar selecionar elemento antes dele existir no DOM (use `defer`).
+- Usar `innerHTML` com dados do usuário → XSS.
+- Esquecer `querySelectorAll` retorna NodeList (sem métodos de array, mas tem
+  `forEach`).
+- Misturar responsabilidades: colocar lógica de estilo inline no JS.
+
+## Por isso importa
+
+O DOM é a ponte entre seu código e o que o usuário vê e toca. Saber selecionar,
+criar, alterar e — acima de tudo — fazer isso com segurança (sem abrir brechas de
+XSS) é o que transforma páginas estáticas em interfaces vivas e confiáveis, e é
+a base para qualquer framework moderno que você vá aprender depois.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença
+entre `getElementById` e `querySelector`, `textContent` vs `innerHTML`,
+`classList`, criação/remoção de nós e como evitar vulnerabilidades de XSS.

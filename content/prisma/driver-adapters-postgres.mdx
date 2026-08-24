@@ -1,0 +1,212 @@
+# Driver adapters com PostgreSQL
+
+**No Prisma 7, driver adapters deixaram de ser experimento e passaram a ser o caminho oficial de conexão. Em vez de um motor binário próprio falando com o banco, o Prisma delega o transporte a um driver JavaScript que você escolhe — no nosso caso, `pg` via `@prisma/adapter-pg`.**
+
+Esta lição explica o que muda, como configurar e por que isso importa em ambientes serverless e de borda.
+
+## Como era antes
+
+Historicamente o Prisma Client tinha duas camadas:
+
+1. o código TypeScript que você chama;
+2. o **query engine**, um binário nativo (escrito em Rust) que traduzia sua chamada em SQL e falava direto com o PostgreSQL usando seu próprio driver.
+
+Isso funcionava bem, mas tinha custos:
+
+- o binário precisava existir para cada sistema operacional e libc (`linux-musl`, `darwin-arm64`, ...);
+- em bundles serverless o arquivo pesava dezenas de MB;
+- em runtimes que **não** permitem binários nativos nem sockets TCP arbitrários (Cloudflare Workers, Vercel Edge), simplesmente não rodava;
+- pool de conexões era gerenciado pelo engine, fora do seu controle.
+
+## O que é um driver adapter
+
+Um driver adapter é uma camada fina que implementa a interface esperada pelo Prisma usando um driver de banco JavaScript já existente. O Prisma continua planejando e gerando o SQL; **executar** a consulta passa a ser trabalho do driver.
+
+```
+seu código  →  Prisma Client  →  adapter (PrismaPg)  →  driver pg  →  PostgreSQL
+```
+
+Adapters oficiais notáveis:
+
+- `@prisma/adapter-pg` — PostgreSQL com o driver `pg` (o nosso);
+- `@prisma/adapter-neon` — Neon serverless driver, sobre HTTP/WebSocket;
+- `@prisma/adapter-planetscale`, `@prisma/adapter-d1`, `@prisma/adapter-libsql` — outros bancos.
+
+No Prisma 7 essa é a forma padrão: instanciar `new PrismaClient()` sem adapter para PostgreSQL resulta em erro de configuração.
+
+## Instalação
+
+```bash
+npm install @prisma/client @prisma/adapter-pg pg
+npm install --save-dev @types/pg
+```
+
+- `pg` é o driver PostgreSQL puro-JS mais consolidado do ecossistema Node.
+- `@types/pg` dá tipos ao driver (ele não embarca os próprios).
+
+## A `DATABASE_URL`
+
+```bash
+DATABASE_URL="postgresql://devtrilha:senha@localhost:5432/devtrilha?schema=public"
+```
+
+Em provedores gerenciados, atenção a dois parâmetros:
+
+- `sslmode=require` — quase sempre necessário fora do localhost;
+- `connection_limit` / `pgbouncer=true` — quando há um pooler na frente.
+
+O arquivo `.env.example` do projeto documenta o formato; copie para `.env` e preencha.
+
+## Criando o cliente
+
+Este é o padrão real do projeto, em `src/lib/prisma.ts`:
+
+```ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const globalParaPrisma = globalThis as unknown as {
+  prisma?: InstanceType<typeof PrismaClient>;
+};
+
+function criarCliente() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL não definida. Copie .env.example para .env e configure a conexão PostgreSQL.",
+    );
+  }
+  // Prisma 7 exige um driver adapter; para PostgreSQL usamos @prisma/adapter-pg.
+  const adapter = new PrismaPg({ connectionString });
+  return new PrismaClient({ adapter });
+}
+
+export const prisma = globalParaPrisma.prisma ?? criarCliente();
+
+if (process.env.NODE_ENV !== "production") {
+  globalParaPrisma.prisma = prisma;
+}
+```
+
+Leia com calma:
+
+- **`new PrismaPg({ connectionString })`** — o adapter cria internamente um `Pool` do `pg`.
+- **`new PrismaClient({ adapter })`** — a opção `adapter` substitui a antiga `datasources.db.url`.
+- **Falha explícita** se a variável não existir: erro claro na inicialização é melhor que uma exceção obscura na primeira query.
+- **Singleton via `globalThis`** — o hot reload do Next.js reavalia módulos; sem o cache você acumularia pools até o Postgres recusar conexões com `too many clients already`.
+
+## Passando um Pool que você mesmo controla
+
+Quando precisa de controle fino (tamanho do pool, timeouts, SSL customizado, hooks), crie o `Pool` e entregue ao adapter:
+
+```ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,                       // conexões simultâneas
+  idleTimeoutMillis: 30_000,     // fecha conexões ociosas
+  connectionTimeoutMillis: 5_000,
+  ssl: { rejectUnauthorized: true },
+});
+
+const adapter = new PrismaPg(pool);
+export const prisma = new PrismaClient({ adapter });
+```
+
+Isso era impossível com o engine binário: o pool ficava fora do seu alcance.
+
+## Schema e geração
+
+O schema não muda por causa do adapter — `datasource` continua igual:
+
+```prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+A CLI (`migrate`, `studio`, `db pull`) continua usando a `url` do `datasource`. O adapter atua no **runtime da aplicação**. Portanto, os dois precisam apontar para o mesmo banco.
+
+Depois de qualquer alteração:
+
+```bash
+npx prisma generate
+```
+
+## Vantagens concretas
+
+- **Serverless e edge**: sem binário nativo, o bundle encolhe e passa a rodar em runtimes restritos. Com `@prisma/adapter-neon`, a conexão acontece sobre HTTP — ideal para Workers.
+- **Cold start menor**: menos bytes para carregar e nenhum processo extra para iniciar.
+- **Pool sob seu controle**: você ajusta `max`, timeouts e SSL conforme o provedor.
+- **Reuso de infra existente**: se o projeto já usa `pg` para uma consulta legada, ambos compartilham o mesmo pool.
+- **Compatibilidade com poolers**: PgBouncer, Supabase Pooler e RDS Proxy se comportam melhor quando o driver é conhecido e configurável.
+- **Debug mais fácil**: erros vêm do `pg`, com mensagens de Postgres que você já sabe pesquisar.
+
+## Diferenças em relação à conexão padrão antiga
+
+| Aspecto | Engine binário (antigo) | Driver adapter (Prisma 7) |
+| --- | --- | --- |
+| Conexão | feita pelo engine em Rust | feita pelo driver JS |
+| Configuração no código | `datasources.db.url` | `adapter` no construtor |
+| Pool | interno, opaco | seu, configurável |
+| Bundle | inclui binário grande | apenas JavaScript |
+| Edge runtime | não suportado | suportado (com adapter adequado) |
+| Dependências | nenhuma extra | `pg` + adapter |
+
+## Serverless: cuidado com o pool
+
+Em funções serverless, cada instância cria seu próprio pool. Cem instâncias × `max: 10` = mil conexões, e o Postgres não aguenta. Estratégias:
+
+- `max: 1` ou `2` por instância;
+- usar um pooler externo (PgBouncer em modo *transaction*) e apontar a `DATABASE_URL` para ele;
+- em Neon/Supabase, usar o endpoint serverless com o adapter correspondente.
+
+Em ambiente de longa duração (um servidor Node, um container), o oposto vale: um pool único e maior é mais eficiente.
+
+## Encerrando conexões
+
+Em scripts de linha de comando (seed, jobs, migrações de dados), feche explicitamente para o processo terminar:
+
+```ts
+async function main() {
+  // ... trabalho
+}
+
+main()
+  .catch((erro) => {
+    console.error(erro);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+```
+
+Em um servidor web de longa duração **não** chame `$disconnect()` a cada requisição — isso destrói o benefício do pool.
+
+## Problemas comuns
+
+- **`Cannot find module '@prisma/adapter-pg'`** — dependência não instalada; ela é de runtime, não de dev.
+- **`too many clients already`** — muitos pools (falta do singleton) ou `max` alto demais.
+- **`self signed certificate`** — ajuste `ssl` no `Pool` ou use `sslmode=require` na URL, conforme o provedor.
+- **Cliente sem os models novos** — falta rodar `npx prisma generate`.
+- **Consultas funcionam na CLI mas não na app** — CLI e adapter lendo `DATABASE_URL` diferentes (dois `.env`, ou variável definida no shell).
+
+## Por isso importa
+
+Driver adapters mudam onde mora a responsabilidade da conexão — e isso decide se sua aplicação roda no runtime que você quer, se o cold start é aceitável e se o banco sobrevive a um pico de tráfego. Entender essa camada é o que permite depurar problemas de conexão com confiança em vez de tentar coisas aleatórias, e é o que possibilita levar o mesmo código do seu notebook para um container ou para a borda com pouquíssima mudança.
+
+## Quiz
+
+O quiz cobre o papel do adapter na cadeia entre Prisma e banco, o que exatamente `new PrismaClient({ adapter })` substitui e quais pacotes são necessários para PostgreSQL.
+
+Revise ainda o motivo do singleton no `globalThis`, o cuidado com o tamanho do pool em ambientes serverless e a divisão de responsabilidades entre a `url` do `datasource` (usada pela CLI) e o adapter (usado no runtime).

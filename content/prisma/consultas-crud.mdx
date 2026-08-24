@@ -1,0 +1,313 @@
+# Consultas e CRUD
+
+**Com o schema pronto e o cliente gerado, chega a parte divertida: ler e escrever dados. O Prisma Client cobre CRUD completo, filtros ricos, relações aninhadas, agregações e transações — tudo com autocompletar.**
+
+Todos os exemplos assumem `import { prisma } from "@/lib/prisma";` e os models `Usuario`, `Modulo` e `Licao` da lição de modelagem.
+
+## Create
+
+```ts
+const usuario = await prisma.usuario.create({
+  data: {
+    nome: "Ana Souza",
+    email: "ana@devtrilha.dev",
+  },
+});
+```
+
+O retorno é o registro completo, já com `id` e `criadoEm` preenchidos pelo banco.
+
+Criar com relação aninhada em uma única chamada:
+
+```ts
+const modulo = await prisma.modulo.create({
+  data: {
+    slug: "prisma",
+    titulo: "Prisma ORM",
+    ordem: 8,
+    licoes: {
+      create: [
+        { slug: "introducao-ao-prisma", titulo: "Introdução ao Prisma ORM" },
+        { slug: "modelando-dados", titulo: "Modelando dados no schema" },
+      ],
+    },
+  },
+  include: { licoes: true },
+});
+```
+
+O Prisma envolve isso numa transação implícita: se uma lição falhar, o módulo não é criado.
+
+Para muitos registros de uma vez:
+
+```ts
+await prisma.licao.createMany({
+  data: licoes,
+  skipDuplicates: true, // ignora conflitos de @unique
+});
+```
+
+`createMany` é bem mais rápido, mas **não** aceita relações aninhadas e devolve apenas a contagem.
+
+## Leitura: findUnique, findFirst, findMany
+
+`findUnique` só aceita campos únicos (`@id`, `@unique`, `@@unique`). Devolve o registro ou `null`.
+
+```ts
+const porId = await prisma.licao.findUnique({ where: { id } });
+
+const porSlugComposto = await prisma.licao.findUnique({
+  where: { moduloId_slug: { moduloId, slug: "migrations" } },
+});
+```
+
+`findFirst` aceita qualquer filtro e respeita `orderBy`:
+
+```ts
+const maisRecente = await prisma.licao.findFirst({
+  where: { publicado: true },
+  orderBy: { criadoEm: "desc" },
+});
+```
+
+Existem as variantes `findUniqueOrThrow` e `findFirstOrThrow`, que lançam erro em vez de retornar `null` — úteis com `notFound()` do Next.js:
+
+```ts
+import { notFound } from "next/navigation";
+
+const licao = await prisma.licao.findUnique({ where: { id } });
+if (!licao) notFound();
+```
+
+`findMany` devolve uma lista (array vazio quando não há nada):
+
+```ts
+const licoes = await prisma.licao.findMany({
+  where: { modulo: { slug: "prisma" } },
+  orderBy: [{ ordem: "asc" }, { titulo: "asc" }],
+  take: 20,
+  skip: 0,
+});
+```
+
+## Filtros e operadores
+
+Igualdade simples é só o valor. Para o resto, objetos de operadores:
+
+```ts
+await prisma.licao.findMany({
+  where: {
+    titulo: { contains: "prisma", mode: "insensitive" },
+    ordem: { gte: 2, lt: 10 },
+    publicado: true,
+    slug: { in: ["migrations", "consultas-crud"] },
+    resumo: { not: null },
+  },
+});
+```
+
+Operadores mais usados:
+
+- números/datas: `equals`, `not`, `lt`, `lte`, `gt`, `gte`, `in`, `notIn`;
+- texto: `contains`, `startsWith`, `endsWith`, `mode: "insensitive"` (específico do PostgreSQL);
+- lógicos: `AND`, `OR`, `NOT`.
+
+```ts
+await prisma.licao.findMany({
+  where: {
+    OR: [
+      { titulo: { contains: "CRUD" } },
+      { resumo: { contains: "CRUD" } },
+    ],
+    NOT: { publicado: false },
+  },
+});
+```
+
+Filtrar por relação usa três quantificadores — `some` (pelo menos uma), `every` (todas) e `none` (nenhuma):
+
+```ts
+await prisma.modulo.findMany({
+  where: { licoes: { some: { publicado: true } } },
+});
+```
+
+## `select` e `include`
+
+`include` traz o model inteiro **mais** as relações pedidas:
+
+```ts
+const modulo = await prisma.modulo.findUnique({
+  where: { slug: "prisma" },
+  include: {
+    licoes: {
+      where: { publicado: true },
+      orderBy: { ordem: "asc" },
+      take: 10,
+    },
+  },
+});
+```
+
+`select` escolhe exatamente os campos — nada mais vem:
+
+```ts
+const resumo = await prisma.modulo.findMany({
+  select: {
+    slug: true,
+    titulo: true,
+    licoes: { select: { slug: true, titulo: true } },
+    _count: { select: { licoes: true } },
+  },
+});
+```
+
+Regras:
+
+- não use `select` e `include` no **mesmo nível**;
+- `select` reduz tráfego e é a escolha certa para listagens;
+- `_count` traz contagens sem carregar os registros.
+
+## Update
+
+```ts
+const atualizada = await prisma.licao.update({
+  where: { id },
+  data: { titulo: "Consultas e CRUD", publicado: true },
+});
+```
+
+Se o registro não existir, o Prisma lança `P2025`. Para não lançar, use `updateMany`, que devolve `{ count }`:
+
+```ts
+const { count } = await prisma.licao.updateMany({
+  where: { moduloId, publicado: false },
+  data: { publicado: true },
+});
+```
+
+Operações atômicas em números evitam condição de corrida:
+
+```ts
+await prisma.licao.update({
+  where: { id },
+  data: { visualizacoes: { increment: 1 } },
+});
+```
+
+Também existem `decrement`, `multiply`, `divide` e `set`. Relações também podem ser alteradas de forma aninhada, com `create`, `updateMany`, `deleteMany` e `connect` dentro de `data`.
+
+## Upsert
+
+Atualiza se existir, cria se não existir — em uma ida ao banco:
+
+```ts
+await prisma.modulo.upsert({
+  where: { slug: "prisma" },
+  update: { titulo: "Prisma ORM", ordem: 8 },
+  create: { slug: "prisma", titulo: "Prisma ORM", ordem: 8 },
+});
+```
+
+É a operação favorita de scripts de seed e de sincronizações, justamente por ser idempotente. O `where` precisa usar um campo único.
+
+## Delete
+
+```ts
+await prisma.licao.delete({ where: { id } });
+
+const { count } = await prisma.licao.deleteMany({
+  where: { publicado: false },
+});
+```
+
+Cuidado: `deleteMany({})` sem filtro apaga a tabela inteira. E lembre que o comportamento das relações depende do `onDelete` definido no schema — `Cascade` apaga os filhos, `Restrict` bloqueia a operação.
+
+Em muitos sistemas vale preferir **soft delete**: uma coluna `arquivadoEm DateTime?` e filtros que ignoram registros arquivados.
+
+## Agregações, agrupamentos e SQL puro
+
+```ts
+const total = await prisma.licao.count({ where: { publicado: true } });
+
+const porModulo = await prisma.licao.groupBy({
+  by: ["moduloId"],
+  _count: { _all: true },
+  having: { moduloId: { _count: { gt: 3 } } },
+});
+```
+
+Também existe `aggregate`, com `_avg`, `_sum`, `_min` e `_max`. Para consultas que o Prisma não expressa (CTEs, window functions), use `$queryRaw` com template tag — a interpolação é parametrizada e protegida contra SQL injection. Evite `$queryRawUnsafe` com entrada do usuário.
+
+## Transações
+
+Use `$transaction` quando várias escritas precisam ter sucesso ou falhar juntas.
+
+**Forma sequencial** (array de operações):
+
+```ts
+const [usuario, matricula] = await prisma.$transaction([
+  prisma.usuario.create({ data: { nome, email } }),
+  prisma.matricula.create({ data: { usuarioId, cursoId } }),
+]);
+```
+
+**Forma interativa** (quando uma etapa depende do resultado da anterior):
+
+```ts
+await prisma.$transaction(async (tx) => {
+  const usuario = await tx.usuario.create({ data: { nome, email } });
+
+  const vagas = await tx.curso.findUnique({
+    where: { id: cursoId },
+    select: { vagas: true },
+  });
+
+  if (!vagas || vagas.vagas < 1) {
+    throw new Error("Curso sem vagas"); // rollback automático
+  }
+
+  await tx.curso.update({
+    where: { id: cursoId },
+    data: { vagas: { decrement: 1 } },
+  });
+
+  return usuario;
+});
+```
+
+Dentro do callback use **sempre `tx`**, nunca `prisma` — usar o cliente global escapa da transação. E mantenha o bloco curto: nada de `fetch` externo lá dentro, pois a transação segura uma conexão e tem timeout.
+
+## Boas práticas
+
+- **Evite N+1**: não faça `findMany` e depois um `findUnique` por item dentro de um loop; use `include`.
+- **Pagine sempre**: `take` + `skip`, ou cursor (`cursor` + `take`) para listas grandes.
+- **`select` em listagens**: menos dados na rede e no JSON.
+- **Índices** nas colunas de `where`/`orderBy`.
+- **Trate erros conhecidos** pelo código: `P2002` (violação de unicidade), `P2025` (registro não encontrado), `P2003` (FK inválida).
+
+```ts
+import { Prisma } from "@/generated/prisma/client";
+
+try {
+  await prisma.usuario.create({ data: { nome, email } });
+} catch (erro) {
+  if (
+    erro instanceof Prisma.PrismaClientKnownRequestError &&
+    erro.code === "P2002"
+  ) {
+    return { erro: "E-mail já cadastrado" };
+  }
+  throw erro;
+}
+```
+
+## Por isso importa
+
+CRUD é 90% do que uma aplicação faz, e é onde bugs silenciosos nascem: um `update` sem filtro adequado, uma lista sem paginação que derruba a API, um N+1 que faz 300 queries por página. Dominar `where`, `select`, `include` e `$transaction` é a diferença entre um backend que aguenta crescimento e um que precisa ser reescrito no primeiro pico de acesso.
+
+## Quiz
+
+As perguntas cobrem a diferença entre `findUnique` e `findFirst`, o que muda entre `select` e `include` e o comportamento do `upsert`.
+
+Revise também as transações interativas — em especial por que você precisa usar o `tx` recebido no callback — e as operações atômicas como `increment` para evitar condições de corrida.

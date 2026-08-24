@@ -1,0 +1,162 @@
+# Tailwind CSS 4 e @theme
+
+> Módulo 7 · Tailwind CSS 4 + Radix UI
+
+**O Tailwind CSS 4** é uma reescrita do framework em torno de uma filosofia
+CSS-first: a configuração sai do JavaScript (`tailwind.config.js`) e vai para o
+próprio CSS, usando a diretiva `@import "tailwindcss"` e o bloco `@theme` para
+definir tokens de design. Isso torna o setup mais simples, mais rápido (engine
+em Rust/Lightning CSS) e mais integrado à linguagem nativa de estilos.
+
+## O básico: import no CSS
+
+No Tailwind v4 você não precisa de arquivo de config para começar. Basta um
+único `@import` no seu stylesheet global:
+
+```css
+@import "tailwindcss";
+```
+
+Esse import disponibiliza todos os utilitários (`flex`, `grid`, `p-4`,
+`text-lg`...) automaticamente, varrendo o projeto. Não há `content` para
+configurar manualmente: o v4 detecta arquivos por padrão. No Next.js, esse CSS
+vai no `app/globals.css` importado no `layout.tsx`.
+
+## @theme: tokens de design
+
+A novidade central é `@theme`. Dentro dele você declara variáveis CSS que
+viram utilitários. Por convenção, nomes como `--color-*` geram cores, `--spacing-*`
+geram espaçamentos, `--font-*` fontes, e assim por diante.
+
+```css
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #4f46e5;
+  --color-brand-dark: #4338ca;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --spacing-section: 4rem;
+}
+```
+
+Com isso você ganha utilitários como `bg-brand`, `text-brand`, `font-sans` e
+`p-section` de graça:
+
+```html
+<button class="bg-brand text-white p-section font-sans rounded-lg">
+  Enviar
+</button>
+```
+
+As variáveis também ficam disponíveis como CSS puro (`var(--color-brand)`),
+útil para estilos que fogem aos utilitários.
+
+## Cores e variantes
+
+Você pode sobrescrever a paleta padrão ou estendê-la. O v4 já traz uma paleta
+base (`--color-red-500`, etc.); adicionar a sua evita conflito:
+
+```css
+@theme {
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+}
+
+/* uso */
+/* <p class="text-success">Salvo!</p> */
+/* <p class="text-danger">Erro.</p> */
+```
+
+## Utilitários comuns
+
+Os utilitários continuam iguais às versões anteriores:
+
+```html
+<div class="flex items-center gap-4 p-6 rounded-xl shadow-sm">
+  <span class="grid place-items-center size-10 bg-slate-100">1</span>
+  <p class="text-sm font-medium text-slate-700">Conteúdo</p>
+</div>
+```
+
+- Layout: `flex`, `grid`, `block`, `hidden`.
+- Espaçamento: `p-*`, `m-*`, `gap-*`, `space-y-*`.
+- Tipografia: `text-*`, `font-*`, `font-bold`.
+- Borda/sombra: `rounded-*`, `border`, `shadow-*`.
+
+No v4, `size-*` é um atalho para width+height.
+
+## Responsividade
+
+Prefixos de breakpoint funcionam como antes: `sm:`, `md:`, `lg:`, `xl:`.
+
+```html
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <!-- 1 coluna no mobile, 2 no md, 3 no lg -->
+</div>
+```
+
+O v4 também introduz breakpoints baseados em contêiner (`@container`) e permite
+customizar os pontos em `@theme` com `--breakpoint-md: 48rem;`.
+
+## Dark mode
+
+O dark mode no v4 usa por padrão a preferência do sistema, mas você pode
+configurar para uma classe. No CSS:
+
+```css
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+Então usa `dark:bg-slate-900 dark:text-white` nos elementos. No DevTrilha,
+aplica-se a classe `dark` no `<html>` via toggle de tema.
+
+## Vantagens do v4 sobre o v3
+
+- **CSS-first**: sem `tailwind.config.js` obrigatório; configura no CSS.
+- **Mais rápido**: engine Lightning CSS (Rust) acelera build e watch.
+- **`@theme`**: tokens tipados e gerados como utilitários e variáveis CSS.
+- **Detecção automática** de arquivos (sem `content`).
+- **Cascading layers** (`@layer`) nativas para ordem de estilos previsível.
+
+## Exemplo completo
+
+```css
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #4f46e5;
+  --color-brand-dark: #4338ca;
+  --breakpoint-md: 48rem;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+```tsx
+export function Card() {
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:bg-slate-800 dark:text-white">
+      <h2 className="text-lg font-bold text-brand">Título</h2>
+      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        Descrição do card.
+      </p>
+    </article>
+  );
+}
+```
+
+## Por isso importa
+
+O Tailwind v4 elimina a fricção de configuração e deixa o design system vivo no
+próprio CSS através de `@theme`. Tokens centralizados significam que mudar a cor
+da marca é uma linha, não uma busca global. Para quem constrói UI de forma
+rápida e consistente — como os componentes do DevTrilha — o v4 é mais simples,
+mais veloz e mais alinhado à plataforma web moderna.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a
+diferença entre `@import "tailwindcss"` e o antigo `tailwind.config.js`, como
+`@theme` gera utilitários a partir de variáveis, como aplicar responsividade
+(`md:`) e dark mode, e as vantagens do v4 sobre o v3.

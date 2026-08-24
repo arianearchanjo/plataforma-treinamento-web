@@ -1,0 +1,167 @@
+# Átomos e derived atoms
+
+**Depois de criar átomos básicos, o próximo passo é derivar estado a partir
+deles.** O Jotai permite que um átomo calcule seu valor com base em outros,
+formando uma cadeia reativa onde tudo se mantém em sincronia automaticamente.
+
+## O átomo primitivo
+
+Já vimos o átomo mais simples: um valor inicial qualquer.
+
+```tsx
+import { atom } from "jotai";
+
+const nomeAtom = atom("Ana");
+const idadeAtom = atom(30);
+```
+
+Esse é o átomo primitivo. Ele guarda um valor e pode ser lido/escrito com
+`useAtom`. Onde ele for usado, compartilha o mesmo estado.
+
+## Lendo e escrevendo com precisão
+
+Além do `useAtom` (que retorna `[valor, setter]`), o Jotai oferece hooks
+especializados:
+
+- `useAtomValue(atom)` — lê o valor, sem a função de escrita.
+- `useSetAtom(atom)` — pega só a função de escrita, sem assinar o valor.
+
+```tsx
+import { useAtomValue, useSetAtom } from "jotai";
+
+function Nome() {
+  const nome = useAtomValue(nomeAtom); // só leitura
+  return <p>{nome}</p>;
+}
+
+function MudarNome() {
+  const setNome = useSetAtom(nomeAtom); // só escrita
+  return <button onClick={() => setNome("Beto")}>Trocar</button>;
+}
+```
+
+Separar leitura de escrita melhora a performance: `MudarNome` não re-renderiza
+quando `nome` muda, pois nem assina o valor.
+
+## Átomos derivados (read-only)
+
+Um átomo derivado recebe uma função com `get`, usado para ler outros átomos.
+Seu valor é recalculado sempre que as dependências mudam:
+
+```tsx
+import { atom } from "jotai";
+
+const precoAtom = atom(100);
+const quantidadeAtom = atom(2);
+
+const totalAtom = atom((get) => {
+  const preco = get(precoAtom);
+  const qtd = get(quantidadeAtom);
+  return preco * qtd;
+});
+```
+
+Aqui `totalAtom` não armazena estado próprio: ele deriva de `precoAtom` e
+`quantidadeAtom`. Se qualquer um dos dois mudar, `totalAtom` se atualiza sozinho.
+É como uma "coluna calculada" reativa.
+
+## Átomos derivados com escrita (read/write)
+
+Átomos derivados também podem ser graváveis. A função recebe `get` e `set`:
+
+```tsx
+const temperaturaCAtom = atom(25);
+
+const temperaturaFAtom = atom(
+  (get) => (get(temperaturaCAtom) * 9) / 5 + 32,
+  (get, set, novoF: number) => {
+    const novoC = ((novoF - 32) * 5) / 9;
+    set(temperaturaCAtom, novoC);
+  }
+);
+```
+
+Ao escrever em `temperaturaFAtom`, o setter converte e atualiza o átomo base
+`temperaturaCAtom`. As duas "visualizações" do mesmo dado permanecem
+consistentes.
+
+## writeOnlyAtom
+
+Quando um átomo só precisa executar uma ação (sem valor para ler), usamos o
+padrão write-only: a função de leitura simplesmente lança erro, ou usamos um
+átomo que nunca é lido:
+
+```tsx
+const resetarAtom = atom(null, (get, set) => {
+  set(nomeAtom, "Ana");
+  set(idadeAtom, 30);
+});
+
+function BotaoReset() {
+  const resetar = useSetAtom(resetarAtom);
+  return <button onClick={() => resetar()}>Resetar</button>;
+}
+```
+
+Esse padrão é ótimo para ações que tocam múltiplos átomos de uma vez — como
+"limpar o formulário" ou "fazer logout".
+
+## Átomos com valores iniciais dinâmicos
+
+O valor inicial pode ser resultado de uma expressão, mas cuidado: o argumento de
+`atom()` é avaliado uma vez na criação do módulo. Para valores que dependem de
+cálculo sob demanda, prefira átomos derivados.
+
+```tsx
+const configInicial = atom({ tema: "claro", idioma: "pt-BR" });
+```
+
+## Separar leitura e escrita para performance
+
+A regra de ouro: use `useAtomValue` onde só importa o valor e `useSetAtom` onde
+só importa a ação. Isso evita re-renders em componentes que apenas disparam
+eventos. Em árvores grandes, essa separação faz diferença perceptível.
+
+```tsx
+function Formulario() {
+  const setNome = useSetAtom(nomeAtom);
+  // este componente não re-renderiza quando 'nome' muda
+  return <input onChange={(e) => setNome(e.target.value)} />;
+}
+```
+
+## Encadeando derivações
+
+Átomos derivados podem depender de outros derivados, formando cadeias. O Jotai
+recalcula automaticamente toda a cadeia quando a fonte muda:
+
+```tsx
+const precoAtom = atom(100);
+const quantidadeAtom = atom(2);
+
+const subtotalAtom = atom((get) => get(precoAtom) * get(quantidadeAtom));
+const descontoAtom = atom(0.1);
+
+const totalAtom = atom((get) =>
+  get(subtotalAtom) * (1 - get(descontoAtom))
+);
+```
+
+Aqui `totalAtom` depende de `subtotalAtom`, que por sua vez depende dos átomos
+base. Mudar `precoAtom` reflete em `subtotalAtom` e, consequentemente, em
+`totalAtom`. Você descreve o fluxo de dados e a biblioteca cuida da
+sincronização — sem efeitos manuais nem reducers.
+
+## Por isso importa
+
+Átomos derivados são o que torna o Jotai poderoso: você descreve relações entre
+dados e a biblioteca mantém tudo consistente, sem reducers manuais nem efeitos
+para sincronizar estado. Dominar read-only, read/write e write-only é o que
+separa quem "guarda estado" de quem modela fluxos de dados reativos de verdade.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a
+diferença entre `useAtom`, `useAtomValue` e `useSetAtom`, como criar átomos
+derivados com `get`, átomos com escrita e o padrão `writeOnlyAtom`, e por que
+separar leitura de escrita melhora a performance.

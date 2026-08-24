@@ -1,0 +1,216 @@
+# Componentes e props
+
+**Componentes** são a unidade básica do React: funções (ou, no passado, classes) que recebem dados de entrada e retornam JSX descrevendo parte da interface. **Props** (abreviação de "properties") são a forma como o componente pai passa esses dados para o filho — são somente leitura dentro do filho.
+
+## Componentes como funções que retornam JSX
+
+Todo componente em React 19 é, na prática, uma função que devolve elementos. O nome deve começar com maiúscula para que o compilador JSX o reconheça como componente e não como tag nativa.
+
+```jsx
+function Saudacao() {
+  return <p>Bem-vindo à DevTrilha</p>;
+}
+```
+
+Você compõe telas combinando componentes como se fossem tags:
+
+```jsx
+function Pagina() {
+  return (
+    <section>
+      <Saudacao />
+      <Saudacao />
+    </section>
+  );
+}
+```
+
+## Lendo dados do pai com props
+
+Props são o mecanismo de comunicação pai para filho. Elas chegam como o primeiro argumento da função, geralmente um objeto.
+
+```jsx
+function Saudacao({ nome }) {
+  return <p>Olá, {nome}</p>;
+}
+
+function Pagina() {
+  return (
+    <>
+      <Saudacao nome="Ana" />
+      <Saudacao nome="Beto" />
+    </>
+  );
+}
+```
+
+Dentro do filho, `nome` é **somente leitura**. Você nunca deve mutar props — se precisar de um valor que muda, use estado (próxima lição).
+
+## Desestruturação de props
+
+A desestruturação torna o código mais legível e tipado:
+
+```jsx
+function Card({ titulo, descricao, aoClicar }) {
+  return (
+    <article onClick={aoClicar}>
+      <h2>{titulo}</h2>
+      <p>{descricao}</p>
+    </article>
+  );
+}
+```
+
+Com TypeScript, você tipa as props para garantir uso correto:
+
+```tsx
+type CardProps = {
+  titulo: string;
+  descricao: string;
+  aoClicar?: () => void;
+};
+
+function Card({ titulo, descricao, aoClicar }: CardProps) {
+  return (
+    <article onClick={aoClicar}>
+      <h2>{titulo}</h2>
+      <p>{descricao}</p>
+    </article>
+  );
+}
+```
+
+## Composição de componentes
+
+Em vez de preencher um componente com dezenas de props de configuração, preferia **composição**: passe conteúdo como filhos.
+
+```jsx
+function Painel({ titulo, children }) {
+  return (
+    <section className="painel">
+      <header>{titulo}</header>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <Painel titulo="Estatísticas">
+      <p>Usuários ativos: 120</p>
+      <button>Atualizar</button>
+    </Painel>
+  );
+}
+```
+
+## A prop `children`
+
+`children` é a prop especial que recebe tudo que foi colocado entre as tags do componente. É a base da composição e de layouts.
+
+```jsx
+function Caixa({ children }) {
+  return <div className="caixa">{children}</div>;
+}
+```
+
+No Next.js, o `app/layout.tsx` recebe `children` representando a página atual — por isso o layout aparece em todas as rotas.
+
+## Props vs estado
+
+Esta é uma distinção central:
+
+- **Props**: dados que vêm de fora (do pai). São imutáveis no filho.
+- **Estado**: dados que o próprio componente controla e que mudam ao longo do tempo.
+
+```jsx
+// props vêm de fora
+function Relogio({ cidade }) {
+  // estado é interno e muda
+  const [hora, setHora] = useState(new Date());
+  return <p>{cidade}: {hora.toLocaleTimeString()}</p>;
+}
+```
+
+Mudar props exige que o pai mude; mudar estado é local. Na próxima lição aprofundamos o estado.
+
+## Convenções de projeto
+
+- **PascalCase** para nomes de componentes e arquivos (`Botao.tsx`, `ListaTarefas.tsx`).
+- Um componente por arquivo na maioria dos casos, facilitando importação e testes.
+- Props opcionais usam `?` no TypeScript e devem ter fallback.
+- Componentes "puros": mesmas props geram mesma saída, sem efeitos colaterais na renderização.
+
+```tsx
+// botao/Botao.tsx
+type BotaoProps = {
+  variant?: "primario" | "secundario";
+  children: React.ReactNode;
+};
+
+export function Botao({ variant = "primario", children }: BotaoProps) {
+  return <button className={`botao botao--${variant}`}>{children}</button>;
+}
+```
+
+## Componentes puros
+
+Um componente puro não altera variáveis globais, não faz requisições nem timers durante a renderização, e retorna o mesmo JSX para as mesmas props. Isso permite que o React otimize e que você raciocine sobre a UI sem efeitos surpresa.
+
+```jsx
+// Puro: previsível
+function Dobro({ valor }) {
+  return <span>{valor * 2}</span>;
+}
+
+// Impuro: efeito colateral durante render (evite)
+let cache = {};
+function Impuro({ valor }) {
+  cache[valor] = valor; // muta algo externo durante render
+  return <span>{valor}</span>;
+}
+```
+
+## Compartilhando tipos de props
+
+Em TypeScript, é comum exportar o tipo das props para reutilização e teste. Isso documenta o "contrato" do componente e habilita autocomplete seguro.
+
+```tsx
+export type AvatarProps = {
+  nome: string;
+  tamanho?: "sm" | "md" | "lg";
+  destaque?: boolean;
+};
+
+export function Avatar({ nome, tamanho = "md", destaque = false }: AvatarProps) {
+  return (
+    <span className={`avatar avatar--${tamanho} ${destaque ? "is-destaque" : ""}`}>
+      {nome.charAt(0)}
+    </span>
+  );
+}
+```
+
+Propriedades opcionais (`?`) devem ter um valor padrão ou tratamento, evitando `undefined` na UI.
+
+## Boas práticas
+
+- Passe apenas os dados necessários como props (evite "prop drilling" excessivo; para muitos níveis, considere contexto ou estado global como Jotai).
+- Prefira composição com `children` a props de layout complexas.
+- Tipos explícitos em TypeScript previnem bugs de contrato entre pai e filho.
+- Mantenha nomes de props claros e no domínio do componente.
+
+## Armadilhas comuns
+
+- Tentar mutar props diretamente (`props.nome = "x"`), o que quebra o modelo.
+- Confundir props com estado e perder atualizações.
+- Componentes gigantes com dezenas de props — sinal para refatorar em composição.
+- Esquecer de tornar props opcionais tipadas quando apropriado.
+
+## Por isso importa
+
+Componentes e props são a gramática do React. Dominar composição e a fronteira nítida entre props (imutáveis, do pai) e estado (mutável, interno) é o que separa código React frágil de código sustentável. Todo sistema maior na DevTrilha — desde o layout até formulários — nasce dessa composição.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a diferença entre props e estado, como funciona a prop `children`, desestruturação de props, e por que componentes devem ser puros.

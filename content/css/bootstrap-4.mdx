@@ -1,0 +1,157 @@
+# Bootstrap 4 essencial
+
+**Bootstrap 4** é o framework CSS mais popular do mundo, que entrega um sistema de grid, componentes prontos e utilitários de estilo para acelerar a criação de interfaces responsivas e consistentes. Ele usa Flexbox como base do seu grid e traz convenções que economizam horas de trabalho manual com CSS puro.
+
+## Como incluir
+
+A forma mais simples é via CDN, sem instalar nada:
+
+```html
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+```
+
+Para projetos reais, instale via npm (`npm i bootstrap@4`) e importe o Sass para personalizar variáveis.
+
+## O sistema de grid de 12 colunas
+
+O Bootstrap divide cada linha em 12 colunas. Você diz quantas colunas cada elemento ocupa, em cada breakpoint:
+
+```html
+<div class="container">
+  <div class="row">
+    <div class="col-md-8">Conteúdo principal</div>
+    <div class="col-md-4">Sidebar</div>
+  </div>
+</div>
+```
+
+`col-md-8` ocupa 8 das 12 colunas a partir do breakpoint `md` (≥768px). Abaixo disso, as colunas empilham automaticamente.
+
+## container, row e col
+
+- **`.container`**: centraliza e limita a largura (com padding interno).
+- **`.container-fluid`**: ocupa 100% da largura.
+- **`.row`**: linha flex que anula o padding das colunas e cria o *gutter* (espaço).
+- **`.col-*`**: colunas que usam Flexbox por baixo.
+
+```html
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-lg-3">Uma</div>
+    <div class="col-12 col-lg-3">Duas</div>
+    <div class="col-12 col-lg-3">Três</div>
+    <div class="col-12 col-lg-3">Quatro</div>
+  </div>
+</div>
+```
+
+Breakpoints do Bootstrap 4: `xs` (<576px, implícito), `sm` (≥576), `md` (≥768), `lg` (≥992), `xl` (≥1200).
+
+## Utilitários de espaçamento
+
+O Bootstrap codifica margin/padding em classes: `{propriedade}{lado}-{tamanho}`. Ex.: `mt-3` = margin-top tamanho 3; `px-4` = padding horizontal 4.
+
+```html
+<div class="mt-4 mb-2 px-3 py-5">...</div>
+```
+
+Tamanhos vão de `0` a `5` (e `auto`). Também há variações por breakpoint: `mt-md-4` aplica só em `md+`.
+
+## Tipografia
+
+Classes prontas para texto:
+
+```html
+<p class="h1">Parece um h1</p>
+<p class="lead">Parágrafo de destaque.</p>
+<p class="text-muted">Texto secundário.</p>
+<p class="text-center text-uppercase">Centralizado e maiúsculo</p>
+```
+
+O Bootstrap já define uma escala de fontes, altura de linha e cores de apoio.
+
+## Botões
+
+```html
+<button class="btn btn-primary">Primário</button>
+<button class="btn btn-outline-danger">Contorno</button>
+<button class="btn btn-success btn-lg">Grande</button>
+```
+
+Variações: `btn-primary`, `btn-secondary`, `btn-success`, `btn-danger`, `btn-warning`, `btn-info`, `btn-light`, `btn-dark`, `btn-link`.
+
+## Alertas
+
+```html
+<div class="alert alert-warning" role="alert">
+  Atenção: prazo encerra hoje!
+</div>
+```
+
+Use `alert-success`, `alert-info`, `alert-danger` conforme o contexto. Para alertas dispensáveis, adicione `alert-dismissible fade show` e um botão com `data-dismiss="alert"`.
+
+## Navbar
+
+```html
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <a class="navbar-brand" href="#">MinhaApp</a>
+  <button
+    class="navbar-toggler"
+    type="button"
+    data-toggle="collapse"
+    data-target="#menu"
+  >
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="menu">
+    <ul class="navbar-nav">
+      <li class="nav-item"><a class="nav-link" href="#">Início</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">Sobre</a></li>
+    </ul>
+  </div>
+</nav>
+```
+
+A navbar colapsa em um botão no mobile automaticamente — um excelente exemplo de responsividade pronta.
+
+## Bootstrap vs CSS puro
+
+**Use Bootstrap quando:**
+
+- Precisa de protótipos ou MVPs rápidos.
+- Quer consistência visual e componentes acessíveis sem reinventar.
+- A equipe já conhece o framework.
+
+**Prefira CSS puro (Grid/Flexbox) quando:**
+
+- O design é muito customizado (o framework vira obstáculo).
+- Performance crítica: Bootstrap completo carrega CSS que talvez não use.
+- Quer aprender fundamentos e ter controle total (nosso foco neste módulo).
+
+Na prática, muitos projetos usam Bootstrap para o esqueleto e CSS próprio para ajustes finos — e tudo que vimos de seletores, box model, Flexbox e Grid é exatamente o que o Bootstrap usa por baixo.
+
+## Boas práticas
+
+- Use `container`/`row`/`col` na ordem correta; nunca coloque `col` fora de `row`.
+- Personalize via variáveis Sass em vez de sobrescrever classes no final do arquivo.
+- Carregue só o JS necessário (popper + bundle) para leveza.
+- Combine utilitários de espaçamento com componentes para reduzir CSS escrito à mão.
+
+## Armadilhas comuns
+
+- Esquecer o `container` e ver o conteúdo grudado nas bordas.
+- Aninhar `row` dentro de `col` sem novo `container` e quebrar o gutter.
+- Usar `!important` para vencer o Bootstrap, em vez de aumentar especificidade.
+- Carregar o CSS todo e usar só 5 classes (peso desnecessário).
+
+## Por isso importa
+
+Bootstrap 4 coloca em suas mãos, prontos, os mesmos conceitos de Flexbox e grid que estudamos nas lições anteriores — ele é a aplicação prática deles em escala industrial. Saber usá-lo (e quando não usá-lo) acelera entregas e ainda reforça a compreensão de CSS moderno que você já domina.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: como funciona o grid de 12 colunas, a diferença entre `container` e `container-fluid`, e quando escolher Bootstrap em vez de CSS puro.

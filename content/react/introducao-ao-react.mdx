@@ -1,0 +1,218 @@
+# Introdução ao React
+
+**React** é uma biblioteca JavaScript de código aberto, mantida pelo Meta e por uma comunidade enorme, focada em construir interfaces de usuário (UI) baseadas em componentes reutilizáveis. Em vez de manipular o DOM manualmente, você descreve como a tela deve ser para cada estado e o React se encarrega de atualizar apenas o que mudou.
+
+## O que é React, afinal?
+
+React não é um framework completo (roteamento, banco de dados e servidor ficam por conta de outras ferramentas, como o Next.js). Ele é uma **biblioteca de UI declarativa** cujo núcleo resolve um problema: sincronizar a interface com os dados ao longo do tempo sem você escrever código imperativo de atualização.
+
+- **Baseada em componentes**: a interface é dividida em pedaços isolados e composíveis.
+- **Declarativa**: você diz "o que" deve aparecer, não "como" mudar o DOM.
+- **Reativa**: quando o estado muda, a view correspondente é re-renderizada automaticamente.
+
+```jsx
+// Antes (imperativo): você acha o nó e troca o texto
+document.getElementById("titulo").textContent = "Olá";
+
+// Com React (declarativo): você descreve a UI para este estado
+function Saudacao({ nome }) {
+  return <h1>Olá, {nome}</h1>;
+}
+```
+
+## SPA vs SSR
+
+Historicamente o React nasceu para aplicações de página única (**SPA**), onde o navegador baixa um bundle de JS e renderiza tudo no cliente. Com o tempo surgiram abordagens de **SSR** (Server-Side Rendering) e **SSG** (Static Site Generation), nas quais o HTML é produzido no servidor.
+
+- **SPA**: ótima interatividade, mas o primeiro carregamento envia muito JS e o SEO sofre.
+- **SSR/SSG** (via Next.js): o HTML já vem pronto do servidor, melhorando performance e indexação.
+
+O React em si descreve componentes; quem decide onde eles rodam é o ambiente (Vite para SPA, Next.js para SSR).
+
+## JSX: HTML dentro do JavaScript
+
+**JSX** é uma extensão de sintaxe que permite escrever marcação parecida com HTML dentro de arquivos JavaScript/TypeScript. Não é HTML puro: é açúcar sintático que vira chamadas de `React.createElement`.
+
+```jsx
+const elemento = <h1 className="titulo">Olá mundo</h1>;
+
+// O compilador transforma em:
+// React.createElement("h1", { className: "titulo" }, "Olá mundo");
+```
+
+Regras importantes do JSX:
+
+- Use `className` em vez de `class`.
+- Chaves `{ }` inserem expressões JavaScript (variáveis, funções, ternários).
+- Elementos devem poder ser fechados (`<img />` em vez de `<img>`).
+- Comentários vão dentro de `{/* ... */}`.
+
+## Expressões e lógica no JSX
+
+Dentro de chaves você pode colocar qualquer expressão JavaScript: variáveis, operações, chamadas de função e ternários para condicionais. Isso mantém a marcação dinâmica sem sair do declarativo.
+
+```jsx
+function Saudacao({ nome, admin }) {
+  return (
+    <div>
+      <p>Olá, {nome.toUpperCase()}</p>
+      {admin ? <span>Moderador</span> : <span>Membro</span>}
+      <p>{1 + 2} mensagens</p>
+    </div>
+  );
+}
+```
+
+Evite colocar `if` solto dentro do JSX; use operadores ternários ou extraia a lógica para variáveis antes do `return`.
+
+## Componentes como funções
+
+Em React 19 a forma canônica de criar componente é uma **função que retorna JSX**. Componentes sempre começam com letra maiúscula, caso contrário o JSX os trata como tags nativas.
+
+```jsx
+function Botao({ texto }) {
+  return <button>{texto}</button>;
+}
+
+function App() {
+  return (
+    <main>
+      <h1>Minha primeira app</h1>
+      <Botao texto="Clique" />
+    </main>
+  );
+}
+```
+
+Essas funções são "puras" quanto à renderização: dadas as mesmas props, devem retornar a mesma UI, sem alterar variáveis externas.
+
+## O modelo declarativo
+
+No paradigma imperativo você escreve passos: "pegue o elemento, mude a cor, insira o filho". No declarativo você descreve a UI para cada estado e deixa o React reconciliar.
+
+```jsx
+function Contador() {
+  const [n, setN] = useState(0);
+  // Você descreve: "se n for 0, mostre 0; se for 1, mostre 1"...
+  return <button onClick={() => setN(n + 1)}>Valor: {n}</button>;
+}
+```
+
+Você nunca escreve `document.appendChild` para refletir `n`. O React percebe a mudança de estado e re-renderiza.
+
+## Virtual DOM e reconciliação
+
+O **Virtual DOM** é uma representação leve da árvore real do DOM mantida em memória. Quando o estado muda, o React cria uma nova árvore virtual, compara com a anterior (diffing) e aplica no DOM real apenas as diferenças (reconciliação).
+
+- Você ganha performance sem otimizar manualmente cada atualização.
+- O custo de "re-renderizar" é barato porque é só comparação em memória.
+- Ainda é possível otimizar com `memo`, `useMemo` e `useCallback` quando necessário.
+
+## Instalação com Vite e com Next.js
+
+Para uma SPA simples, o **Vite** é o ponto de partida recomendado:
+
+```bash
+npm create vite@latest minha-app -- --template react-ts
+cd minha-app
+npm install
+npm run dev
+```
+
+Para projetos full-stack com SSR, rotas e API, use o **Next.js** (veremos a fundo no módulo seguinte):
+
+```bash
+npx create-next-app@latest minha-app --ts --app
+cd minha-app
+npm run dev
+```
+
+## Seu primeiro componente
+
+O exemplo mínimo pedido pela documentação continua válido: uma função que retorna um elemento.
+
+```jsx
+function App() {
+  return <h1>Olá, DevTrilha!</h1>;
+}
+```
+
+No Next.js esse `App` vira seu `app/page.tsx`; no Vite ele é montado com `createRoot(document.getElementById("root")).render(<App />)`.
+
+## Renderização e o ciclo de atualização
+
+Quando o estado muda, o React executa um ciclo: ele chama novamente a função do componente para obter a nova descrição da UI, compara com a descrição anterior no Virtual DOM e aplica as diferenças no DOM real. O desenvolvedor não participa desse passo-a-passo — apenas declara o estado e a view resultante.
+
+```jsx
+function Temperatura() {
+  const [c, setC] = useState(25);
+  // ao clicar, setC muda o estado -> React re-renderiza sozinho
+  return <button onClick={() => setC(c + 1)}>{c} graus</button>;
+}
+```
+
+Esse ciclo é síncrono do ponto de vista do componente: você chama `setC` e, na próxima renderização, `c` já tem o novo valor. Por baixo, o React agrupa (batching) várias atualizações para ser eficiente.
+
+## Componentes e a árvore
+
+Componentes formam uma **árvore**: um componente raiz (`App`) renderiza filhos, que renderizam seus próprios filhos. Cada nó pode ter estado próprio; quando o estado de um nó muda, apenas aquele nó e seus descendentes são re-renderizados (a menos que você opte por otimizar ainda mais).
+
+```jsx
+function App() {
+  return (
+    <Cabecalho />
+    <Conteudo />
+    <Rodape />
+  );
+}
+```
+
+Manter a árvore rasa e os componentes focados facilita a manutenção e o raciocínio sobre atualizações.
+
+## Quando (e quando não) usar React
+
+React brilha em interfaces ricas e interativas: dashboards, formulários, aplicativos com muitos estados. Para páginas puramente estáticas e de conteúdo, pode ser exagero — mas graças ao Next.js (SSR/SSG) ele também serve bem conteúdo estático com SEO.
+
+- **Use React** para UIs com estado, interatividade e composição de componentes.
+- **Use React + Next.js** quando precisar de SEO, rotas e backend.
+- **Evite** React puro para sites que são só texto e links (um HTML simples basta).
+
+## Conceitos-chave para revisar
+
+Antes de avançar, fixe estes pontos:
+
+- **Declarativo**: descreva a UI para cada estado, não os passos de mudança.
+- **Componente**: função que retorna JSX; começa com maiúscula.
+- **JSX**: sintaxe de marcação dentro de JS, compilada para `createElement`.
+- **Virtual DOM**: árvore leve usada para reconciliação eficiente.
+- **SPA vs SSR**: onde o HTML é gerado (navegador vs servidor).
+
+## Próximos passos na trilha
+
+Com a base de componentes e JSX, o caminho natural é aprender props (para compor componentes), estado e hooks (para interatividade) e, em seguida, o Next.js para levar tudo a produção com rotas e servidor. O React puro é a fundação; o Next.js é a casa onde ele vive em aplicações reais.
+
+- Pratique criar componentes pequenos e composíveis.
+- Experimente `useState` para ver o ciclo de re-render na prática.
+- Explore um projeto Vite para sentir o ciclo dev antes de partir para o SSR.
+
+## Boas práticas
+
+- Mantenha componentes pequenos e com uma responsabilidade.
+- Nomeie arquivos e componentes em `PascalCase` (`Cabecalho.tsx`, `CardProduto`).
+- Separe lógica de apresentação quando a complexidade crescer.
+- Prefira composição (filhos) a props cheias de configuração.
+
+## Armadilhas comuns
+
+- Esquecer de importar o React quando o bundler não faz auto-import (em setups sem nova transformação).
+- Usar `class` em vez de `className` no JSX.
+- Misturar imperativo (manipular DOM direto) com declarativo.
+- Criar componentes que não são puros e causam efeitos colaterais durante a renderização.
+
+## Por isso importa
+
+React é a base de boa parte do ecossistema moderno de front-end e do próprio Next.js que usamos na DevTrilha. Entender componentes, JSX e o modelo declarativo é o pré-requisito para tudo que vem depois — props, estado, hooks e Server Components. Sem essa fundação, o resto da trilha fica frágil.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a diferença entre o paradigma declarativo e o imperativo, o papel do Virtual DOM, o que é JSX e como criar seu primeiro componente como função.

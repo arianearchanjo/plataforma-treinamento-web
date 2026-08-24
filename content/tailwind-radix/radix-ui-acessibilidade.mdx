@@ -1,0 +1,161 @@
+# Componentes acessíveis com Radix
+
+> Módulo 7 · Tailwind CSS 4 + Radix UI
+
+**O Radix UI** é uma coleção de primitivos de interface sem estilo (headless)
+que já entregam acessibilidade, gerenciamento de foco e comportamento de
+teclado prontos. Você estiliza com Tailwind e ganha, de graça, componentes que
+funcionam com leitores de tela e navegação por teclado. No DevTrilha, usamos
+`RadioGroup` (no `QuizCard`), `Dialog`, `DropdownMenu` e `Tabs`.
+
+## Por que acessibilidade importa
+
+Acessibilidade (a11y) não é "bônus": é parte da web funcionar para todos.
+
+- **Teclado**: usuários devem navegar e operar tudo sem mouse (Tab, Enter,
+  setas, Esc).
+- **ARIA**: atributos que explicam papéis e estados a leitores de tela.
+- **Focus management**: quando um modal abre, o foco entra nele; ao fechar,
+  retorna ao elemento anterior; o fundo é bloqueado (focus trap).
+- **Legal e ético**: muitos países exigem a11y; todos ganham com UI melhor.
+
+Implementar tudo isso à mão é trabalhoso e cheio de armadilhas. O Radix resolve
+isso nos primitivos.
+
+## O que é um primitivo headless
+
+"Headless" significa que o Radix fornece a estrutura e o comportamento, mas
+nenhuma aparência. Você compõe as partes e aplica classes Tailwind:
+
+```tsx
+import * as Dialog from "@radix-ui/react-dialog";
+
+<Dialog.Root>
+  <Dialog.Trigger className="rounded-lg bg-indigo-600 px-4 py-2 text-white">
+    Abrir
+  </Dialog.Trigger>
+  <Dialog.Portal>
+    <Dialog.Overlay className="fixed inset-0 bg-black/50" />
+    <Dialog.Content className="fixed left-1/2 top-1/2 w-96 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6">
+      <Dialog.Title>Confirmar</Dialog.Title>
+      <Dialog.Description>Deseja enviar?</Dialog.Description>
+      <Dialog.Close className="mt-4 rounded bg-slate-200 px-3 py-1">
+        Fechar
+      </Dialog.Close>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>;
+```
+
+O `Dialog` já cuida de: abrir com Enter/Espaço, fechar com Esc, focus trap,
+restaurar foco, e expor `aria-modal`/`role="dialog"` corretos.
+
+## RadioGroup (usado no QuizCard)
+
+No DevTrilha, o `QuizCard` usa `RadioGroup` para as alternativas, permitindo
+navegação por setas e seleção por teclado:
+
+```tsx
+import * as RadioGroup from "@radix-ui/react-radio-group";
+
+<RadioGroup.Root
+  value={String(escolhida)}
+  onValueChange={(v) => selecionar(Number(v))}
+  className="space-y-2"
+>
+  {alternativas.map((a) => (
+    <RadioGroup.Item
+      key={a.id}
+      value={String(a.id)}
+      className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-2.5 hover:border-indigo-300 focus-visible:ring-2 focus-visible:ring-indigo-400"
+    >
+      <span className="flex size-5 items-center justify-center rounded-full border border-slate-300">
+        <RadioGroup.Indicator className="size-2.5 rounded-full bg-indigo-600" />
+      </span>
+      <span>{a.texto}</span>
+    </RadioGroup.Item>
+  ))}
+</RadioGroup.Root>;
+```
+
+`RadioGroup.Item` recebe `role="radio"` e o grupo gerencia direção do foco.
+
+## DropdownMenu
+
+```tsx
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+
+<DropdownMenu.Root>
+  <DropdownMenu.Trigger className="rounded-lg border px-3 py-1.5">
+    Opções
+  </DropdownMenu.Trigger>
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content className="rounded-lg border bg-white p-1 shadow-md">
+      <DropdownMenu.Item className="rounded px-3 py-1.5 outline-none data-[highlighted]:bg-indigo-50">
+        Editar
+      </DropdownMenu.Item>
+      <DropdownMenu.Item className="rounded px-3 py-1.5 outline-none data-[highlighted]:bg-indigo-50">
+        Excluir
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
+</DropdownMenu.Root>;
+```
+
+`setas` navegam, `Esc` fecha, `data-[highlighted]` estiliza o item em foco — sem
+JS manual.
+
+## Tabs
+
+```tsx
+import * as Tabs from "@radix-ui/react-tabs";
+
+<Tabs.Root defaultValue="conteudo">
+  <Tabs.List className="flex gap-2">
+    <Tabs.Trigger value="conteudo" className="rounded px-3 py-1.5 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+      Conteúdo
+    </Tabs.Trigger>
+    <Tabs.Trigger value="quiz" className="rounded px-3 py-1.5 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+      Quiz
+    </Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="conteudo">Lição em markdown.</Tabs.Content>
+  <Tabs.Content value="quiz">Quiz interativo.</Tabs.Content>
+</Tabs.Root>;
+```
+
+O `Tabs` expõe `role="tablist"`, `aria-selected` e troca de foco corretamente.
+
+## Compondo Radix + Tailwind
+
+O padrão do projeto é: `Radix.*` para comportamento e Tailwind para aparência.
+Destaque para os seletores de estado do Radix via atributos de dados:
+
+- `data-[state=active]:` — aba/seletor ativo.
+- `data-[state=open]:` — menu/modal aberto.
+- `data-[highlighted]:` — item em foco do menu.
+- `data-disabled:` — estado desabilitado.
+
+Isso evita escrever CSS de estado manual e mantém acessibilidade intacta.
+
+## Ganhos sem escrever do zero
+
+- Nunca reimplementar focus trap, ARIA roles ou navegação por setas.
+- Componentes consistentes e testáveis (o `QuizCard` testa o `RadioGroup`).
+- Menor superfície de bugs de a11y.
+- Estilização total via Tailwind, sem parecer "de biblioteca".
+
+## Por isso importa
+
+Acessibilidade costuma ser a primeira coisa cortada por falta de tempo, mas é
+exatamente onde o Radix ajuda: você obtém teclado, ARIA e foco corretos de
+graça, focando só na estética com Tailwind. No DevTrilha, `RadioGroup`,
+`Dialog`, `DropdownMenu` e `Tabs` mostram que UX inclusiva e bela não são
+excludentes — e sim o padrão esperado de um bom desenvolvedor web.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: o que
+significa "headless", por que o Radix economiza trabalho de a11y, como estilizar
+primivos com Tailwind usando `data-[state=active]:`, e quais primitivos o
+DevTrilha usa no `QuizCard` e em menus.

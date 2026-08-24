@@ -1,0 +1,188 @@
+# Introdução ao JavaScript
+
+**JavaScript** é a linguagem de programação da web: ela adiciona comportamento,
+interatividade e lógica a páginas que, sozinhas, seriam apenas texto e imagens
+estáticos. Criada em 1995 para rodar dentro do navegador, hoje ela também
+executa no servidor (Node.js), em apps mobile, desktop e até em dispositivos
+embarcados.
+
+## O que é JavaScript, afinal?
+
+JavaScript é uma linguagem de **alto nível**, **interpretada** (na prática,
+compilada *just-in-time* pelo motor do navegador) e de **tipagem dinâmica**.
+Isso significa que você escreve o código, e o ambiente o executa diretamente,
+sem etapa de compilação separada como em linguagens como C ou Java.
+
+Diferente de uma linguagem puramente compilada, onde um erro só aparece ao gerar
+o executável, em JavaScript o código roda linha a linha. Se houver um problema,
+ele surge em tempo de execução — por isso ferramentas de qualidade (linter,
+type checker) e testes são tão valorizados no ecossistema.
+
+Principais características:
+
+- **Multiparadigma**: suporta programação procedural, orientada a objetos e
+  funcional.
+- **Baseada em eventos**: reage a cliques, envios de formulário, respostas de
+  rede etc.
+- **Single-threaded com event loop**: uma única thread executa o código, mas
+  operações assíncronas não bloqueiam o resto da aplicação (veremos isso no
+  módulo de assincronismo).
+- **Ecossistema gigante**: npm é o maior repositório de pacotes do mundo.
+
+## Onde o JavaScript roda?
+
+### No navegador
+
+Todo navegador moderno traz um motor JavaScript (V8 no Chrome/Edge, SpiderMonkey
+no Firefox, JavaScriptCore no Safari). É aí que manipulamos a página, ouvimos
+eventos do usuário e fazemos requisições.
+
+### No servidor (Node.js / Deno / Bun)
+
+Com o Node.js, o mesmo JavaScript roda fora do navegador para construir APIs,
+scripts, ferramentas de linha de comando e muito mais.
+
+```bash
+# Verifique se o Node está instalado
+node --version
+
+# Rode um arquivo
+node script.js
+
+# Modo interativo (REPL)
+node
+```
+
+## Conectando JavaScript a um HTML
+
+Existem três formas principais de colocar JavaScript em uma página.
+
+### 1. Script inline (dentro do HTML)
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Meu primeiro JS</title>
+  </head>
+  <body>
+    <button id="btn">Clique</button>
+
+    <script>
+      document.getElementById("btn").addEventListener("click", () => {
+        alert("Olá, mundo!");
+      });
+    </script>
+  </body>
+</html>
+```
+
+### 2. Arquivo externo (recomendado)
+
+```html
+<script src="app.js" defer></script>
+```
+
+Colocar o JS em arquivo próprio mantém a separação de responsabilidades,
+permite cache pelo navegador e deixa o HTML mais limpo. O atributo `defer`
+adi a execução até o HTML ser parseado — evitando o clássico erro de tentar
+acessar um elemento que ainda não existe.
+
+### 3. Módulos (`type="module"`)
+
+```html
+<script type="module" src="app.js"></script>
+```
+
+Módulos habilitam `import`/`export` e escopo isolado, essenciais em projetos
+modernos.
+
+## O console: seu melhor amigo
+
+O `console.log` é a ferramenta de depuração mais usada no front-end. Abra as
+ferramentas do desenvolvedor (F12) e veja a aba *Console*.
+
+```js
+console.log("Mensagem simples");
+console.info("Informação");
+console.warn("Atenção");
+console.error("Erro");
+
+const usuario = { nome: "Ana", idade: 30 };
+console.log(usuario); // inspeciona objetos
+console.table([usuario, { nome: "Beto", idade: 25 }]); // tabela legível
+```
+
+## Comentários
+
+Comentários explicam o "porquê" e não o "o quê". Use com moderação: código
+claro raramente precisa de comentário.
+
+```js
+// Comentário de uma linha
+
+/*
+  Comentário
+  de múltiplas linhas
+*/
+
+const preco = 100; // preço base em reais
+```
+
+## Hello, world!
+
+O ritual obrigatório de todo iniciante:
+
+```js
+console.log("Hello, world!");
+```
+
+No navegador, para mostrar na página:
+
+```html
+<p id="saida"></p>
+<script>
+  document.getElementById("saida").textContent = "Hello, world!";
+</script>
+```
+
+## Interpretada vs. compilada (na prática)
+
+Embora digamos que JavaScript é "interpretada", os motores modernos **compilam
+em tempo de execução** para rodar rápido. O ponto importante para você:
+
+- Não há etapa de *build* obrigatória para começar (diferente de Java/C++).
+- Erros aparecem em runtime, por isso vale testar no navegador frequentemente.
+- Ferramentas como TypeScript adicionam uma camada de checagem antes de rodar.
+
+## Boas práticas desde o início
+
+- Use `defer` ou `type="module"` em vez de scripts soltos no meio do `<body>`.
+- Nomeie arquivos e variáveis em **camelCase** (`calcularTotal`, não
+  `calcular_total`).
+- Evite `alert()` em produção; prefira o console ou atualizações na própria
+  página.
+- Mantenha o JS separado do HTML em arquivos `.js`.
+
+## Armadilhas comuns
+
+- **Erro "Cannot read properties of null"**: tentou acessar um elemento antes
+  dele existir no DOM. Solução: use `defer` ou coloque o script no final.
+- **Misturar responsabilidades**: evite escrever lógica de negócio dentro do
+  HTML.
+- **Ignorar o console de erros**: o navegador sempre diz onde o problema está —
+  leia a mensagem em vez de chutar.
+
+## Por isso importa
+
+JavaScript é a única linguagem nativa da web e dominá-la é o que separa quem
+"monta páginas" de quem constrói aplicações de verdade. Entender onde ela roda,
+como se conecta ao HTML e como usar o console desde a primeira linha poupa
+horas de frustração e cria uma base sólida para todo o resto da trilha.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença
+entre linguagem interpretada e compilada, onde o JavaScript roda, o papel do
+`defer` e como usar o console para depurar.

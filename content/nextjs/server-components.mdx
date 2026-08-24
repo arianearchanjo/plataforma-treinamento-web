@@ -1,0 +1,213 @@
+# Server Components
+
+**React Server Components (RSC)** são componentes que rodam no servidor e não no navegador. No App Router do Next.js eles são o padrão: qualquer `page.tsx` ou `layout.tsx` é um Server Component a menos que você diga o contrário. Entender a fronteira entre servidor e cliente é essencial para performance e segurança.
+
+## Server Components vs Client Components
+
+Por padrão, arquivos em `app/` são Server Components. Eles:
+
+- Rodam no servidor (ou em build time).
+- Podem acessar banco de dados, sistemas de arquivos e segredos.
+- **Não** incluem JavaScript no bundle do cliente para sua lógica.
+- Não podem usar hooks de estado/efeito nem eventos de browser.
+
+```tsx
+// Server Component (padrão)
+import { db } from "@/lib/db";
+
+export default async function Usuarios() {
+  const usuarios = await db.usuario.findMany();
+  return (
+    <ul>
+      {usuarios.map((u) => (
+        <li key={u.id}>{u.nome}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Quando marcar `"use client"`
+
+Marque `"use client"` no topo do arquivo quando o componente precisa de:
+
+- Estado (`useState`, `useReducer`).
+- Efeitos (`useEffect`).
+- Eventos do navegador (`onClick`, `onChange`).
+- APIs do browser (`window`, `localStorage`).
+
+```tsx
+"use client";
+import { useState } from "react";
+
+export function Contador() {
+  const [n, setN] = useState(0);
+  return <button onClick={() => setN(n + 1)}>{n}</button>;
+}
+```
+
+A diretiva `"use client"` cria o **limite de cliente**: tudo abaixo dela na árvore vira Client Component.
+
+## O que pode rodar no servidor
+
+Server Components têm acesso a recursos que jamais deveriam ir ao cliente:
+
+```tsx
+import { auth } from "@/lib/auth";
+
+export default async function Painel() {
+  const sessao = await auth(); // lê cookie/segredo no servidor
+  if (!sessao) return <p>Acesso negado</p>;
+  return <p>Olá, {sessao.user.nome}</p>;
+}
+```
+
+Nada do código de `auth()` ou de segredos é enviado ao navegador — apenas o HTML resultante.
+
+## O limite de serialização
+
+Dados passados de um Server Component para um Client Component precisam ser **serializáveis** (objetos plain, arrays, strings, números, `Date` em alguns casos). Funções, instâncias de classes complexas e Promises não cruzam a fronteira.
+
+```tsx
+// Server Component
+import { Contador } from "./contador";
+
+export default async function Pagina() {
+  const dados = { titulo: "Olá" }; // serializável
+  return <Contador titulo={dados.titulo} />;
+}
+
+// Client Component
+"use client";
+export function Contador({ titulo }: { titulo: string }) {
+  return <h1>{titulo}</h1>; // recebe apenas a string
+}
+```
+
+Tentar passar uma função ou uma conexão de banco quebraria a serialização.
+
+## Redução de JavaScript no cliente
+
+Como Server Components não enviam sua lógica ao cliente, a quantidade de JS baixada cai. O usuário recebe HTML pronto e apenas os Client Components carregam JavaScript. Isso melhora tempo de carregamento e interatividade.
+
+```text
+Server Component  -> envia HTML (sem JS da lógica)
+Client Component  -> envia HTML + JS necessário
+```
+
+## Composição server/client
+
+A recomendação é manter a maior parte como Server Component e inserir Client Components apenas onde há interatividade, passando dados prontos como props.
+
+```tsx
+// Server Component
+import { db } from "@/lib/db";
+import { BotaoCurtir } from "./botao-curtir";
+
+export default async function Post({ id }: { id: string }) {
+  const post = await db.post.findUnique({ where: { id } });
+  return (
+    <article>
+      <h1>{post.titulo}</h1>
+      <BotaoCurtir postId={post.id} curtidas={post.curtidas} />
+    </article>
+  );
+}
+```
+
+O `BotaoCurtir` (Client Component) recebe `postId` e `curtidas` como props serializáveis e cuida da interação.
+
+## Server Components assíncronos
+
+Diferente dos Client Components, Server Components podem ser funções `async` e usar `await` diretamente na renderização — ideal para buscar dados antes de montar a UI.
+
+```tsx
+export default async function Dashboard() {
+  const [usuarios, vendas] = await Promise.all([
+    db.usuario.count(),
+    db.venda.count(),
+  ]);
+  return <p>{usuarios} usuários e {vendas} vendas</p>;
+}
+```
+
+## Quando NÃO usar Server Component
+
+Server Components não são ideais quando você precisa de:
+
+- Estado local ou interatividade rica (`useState`, `useEffect`).
+- Acesso a APIs do navegador (`localStorage`, `window`, `document`).
+- Atualização contínua baseada em eventos do usuário.
+
+Nesses casos, extraia a parte interativa para um Client Component e componha a partir do Server Component.
+
+```tsx
+// Server Component
+import { BotaoSeguir } from "./botao-seguir";
+
+export default async function Perfil({ id }: { id: string }) {
+  const usuario = await buscarUsuario(id);
+  return (
+    <section>
+      <h1>{usuario.nome}</h1>
+      <BotaoSeguir usuarioId={usuario.id} /> {/* interatividade no cliente */}
+    </section>
+  );
+}
+```
+
+## Mentalidade de dados no servidor
+
+Com Server Components, a busca de dados acontece perto da fonte. Você não precisa de camadas de "fetch no cliente" para dados iniciais — o servidor já entrega a página pronta. Isso reduz o "loading" percebido e simplifica o código.
+
+```tsx
+export default async function Vendas() {
+  const total = await db.venda.aggregate({ _sum: { valor: true } });
+  return <p>Total: {total._sum.valor}</p>;
+}
+```
+
+## Exemplo completo de composição
+
+```tsx
+// app/produtos/page.tsx (Server Component)
+import { db } from "@/lib/db";
+import { FiltroPreco } from "./filtro-preco";
+
+export default async function Produtos() {
+  const produtos = await db.produto.findMany();
+  return (
+    <div>
+      <h1>Produtos</h1>
+      <FiltroPreco /> {/* Client Component para interação */}
+      <ul>
+        {produtos.map((p) => (
+          <li key={p.id}>{p.nome}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Boas práticas
+
+- Comece com Server Component; adicione `"use client"` só onde necessário.
+- Passe dados serializáveis de servidor para cliente.
+- Mantenha segredos e acessos a banco exclusivamente no servidor.
+- Prefira composição: Server envolve Client, não o contrário.
+
+## Armadilhas comuns
+
+- Importar hooks (`useState`) em Server Component sem `"use client"` (erro).
+- Passar funções ou conexões de banco como props para Client Component.
+- Marcar `"use client"` em arquivos inteiros sem necessidade, aumentando o bundle.
+- Esperar que eventos de browser funcionem em Server Component.
+
+## Por isso importa
+
+Server Components são a mudança mais importante do ecossistema React/Next dos últimos anos: eles permitem menos JavaScript no cliente, acesso seguro a dados no servidor e composição limpa. Na DevTrilha, quase toda página começa como Server Component — entender essa fronteira evita erros de serialização e vazamentos de segredos.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: a diferença entre Server e Client Components, quando usar `"use client"`, o limite de serialização, e por que Server Components reduzem o JavaScript no cliente.

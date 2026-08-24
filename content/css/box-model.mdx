@@ -1,0 +1,142 @@
+# Box model e unidades
+
+**Box model** é o modelo que o navegador usa para calcular o tamanho e o espaçamento de cada elemento da página, tratando-o como uma caixa com quatro camadas. **Unidades** são as medidas (pixels, porcentagens, `rem`, `em`, entre outras) que damos a essas propriedades, e escolhê-las bem é o que torna um layout fluido e acessível.
+
+## As quatro camadas da caixa
+
+Da parte de dentro para fora:
+
+1. **Content**: o conteúdo propriamente dito, definido por `width` e `height`.
+2. **Padding**: espaçamento interno entre o conteúdo e a borda.
+3. **Border**: a borda que envolve o padding.
+4. **Margin**: espaçamento externo, que afasta a caixa das vizinhas (não soma na largura).
+
+```css
+.card {
+  width: 300px;       /* conteúdo */
+  padding: 16px;      /* interno */
+  border: 1px solid #ccc;
+  margin: 24px;       /* externo */
+}
+```
+
+O tamanho *total* visível, por padrão, é `width + padding + border` (a margin fica fora).
+
+## box-sizing: o salvador
+
+O comportamento padrão (`content-box`) faz o `width` ignorar padding e border, surpreendendo iniciantes. A solução moderna é `border-box`, que inclui padding e border dentro do `width`:
+
+```css
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+```
+
+Com `border-box`, uma `.card` de `300px` continua com 300px de ponta a ponta, independente do padding. Coloque esse reset no topo de todo projeto.
+
+## Unidades absolutas
+
+Não mudam com o contexto. O `px` é a mais comum, mas é "rígida":
+
+```css
+.borda {
+  border-width: 2px;
+}
+```
+
+Use pixels para detalhes finos (bordas, sombras) onde precisão importa mais que flexibilidade.
+
+## Unidades relativas a fontes
+
+- **`em`**: relativa ao `font-size` do *próprio* elemento (ou do pai, para `font-size`).
+- **`rem`**: relativa ao `font-size` da raiz (`<html>`), tipicamente `16px`.
+
+```css
+html {
+  font-size: 16px;
+}
+
+h1 {
+  font-size: 2rem;   /* 32px, independente do contexto */
+}
+
+.observacao {
+  font-size: 0.875em; /* 14px se o pai for 16px */
+}
+```
+
+A vantagem do `rem`: se o usuário aumenta a fonte do navegador, todo o layout escala de forma consistente — excelente para acessibilidade.
+
+## Porcentagens
+
+Relativas ao elemento pai. Ideal para larguras fluidas:
+
+```css
+.container {
+  width: 90%;
+  max-width: 1200px;
+}
+```
+
+Cuidado: `height: 100%` só funciona se o pai tiver altura definida.
+
+## Viewport units
+
+Baseadas na janela do navegador:
+
+- `vw` — 1% da largura da viewport.
+- `vh` — 1% da altura da viewport.
+- `vmin` / `vmax` — o menor/maior entre largura e altura.
+
+```css
+.hero {
+  height: 100vh;        /* ocupa a tela inteira */
+  font-size: 5vw;       /* tipografia fluida */
+}
+```
+
+Armadilha: `100vh` em mobile pode incluir a barra de endereço; prefira `100dvh` (dynamic viewport) quando suportado.
+
+## Unidades de cor
+
+- **Hex**: `#1a73e8` ou `#fff` (atalho).
+- **RGB/RGBA**: `rgb(26, 115, 232)` com alpha `rgba(0,0,0,0.5)`.
+- **HSL/HSLA**: `hsl(211, 100%, 53%)` — intuitivo para ajustar tom/saturação/luz.
+- **Nomes**: `red`, `tomato` (legíveis, mas limitados).
+
+```css
+:root {
+  --azul: #1a73e8;
+  --sombra: rgba(0, 0, 0, 0.15);
+}
+```
+
+Dica: use **custom properties** (`--variavel`) para centralizar a paleta e mudar o tema em um só lugar.
+
+## Margin collapsing
+
+Margins verticais de elementos adjacentes "colapsam": em vez de somar, vale a maior das duas. Isso confunde quem espera `24px + 24px = 48px` e vê 24px. Flexbox e Grid não sofrem esse efeito — mais um motivo para usá-los em layouts.
+
+## Boas práticas
+
+- Comece todo CSS com o reset `box-sizing: border-box`.
+- Use `rem` para tipografia e `px` para detalhes; use `%`/`vw` para fluidez.
+- Defina um sistema de espaçamento (múltiplos de 4 ou 8px) e reaproveite.
+- Centralize cores em variáveis CSS.
+
+## Armadilhas comuns
+
+- Esquecer que `width` não inclui padding (sem `border-box`).
+- Esperar `height: 100%` funcionar sem pai com altura definida.
+- Usar `vw`/`vh` sem fallback em navegadores antigos.
+- Misturar `em` e `rem` sem entender a diferença de referência.
+
+## Por isso importa
+
+Todo pixel visual da página nasce do box model e das unidades escolhidas. Entender como o tamanho real é calculado e como dimensionar de forma fluida e acessível é o que impede layouts quebrados e garantindo que seu site funcione em qualquer tela.
+
+## Quiz
+
+Ao final desta lição você encontrará um quiz para fixar os conceitos: diferença entre `content-box` e `border-box`, quando usar `rem` vs `px`, e por que `100vh` pode travar em dispositivos móveis.
